@@ -6,7 +6,7 @@ Este repositorio contiene la traducción al español de la documentación oficia
 
 La documentación traducida se encuentra en el directorio `src/pages/es/` y mantiene la misma jerarquía que la documentación oficial:
 
-```
+```text
 src/pages/es/
 ├── index.mdx                 # Página principal
 ├── faq.mdx                   # Preguntas Frecuentes
@@ -24,12 +24,14 @@ src/pages/es/
 ## Secciones Traducidas
 
 ### Para Usuarios Finales
+
 - **Página Principal**: Introducción general a ENS
 - **FAQ**: Preguntas frecuentes sobre el uso de ENS
 - **Terminología**: Glosario de términos técnicos
 - **Protocolo ENS**: Explicación del servicio de nombres
 
 ### Para Desarrolladores
+
 - **Guía Rápida**: Implementación básica en dApps
 - **Registro ETH**: Detalles técnicos del registrador
 - **Resolución**: Cómo funciona la resolución de nombres
@@ -58,6 +60,7 @@ Este proyecto está en desarrollo activo y busca crear una traducción profesion
 ## Contribuciones
 
 Las contribuciones son bienvenidas. Por favor, asegúrate de:
+
 - Mantener consistencia en la terminología
 - Seguir las mejores prácticas de traducción técnica
 - Preservar el formato y estructura original
