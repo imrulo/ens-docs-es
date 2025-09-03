@@ -2,13 +2,13 @@
 
 Every ENS name has a resolver, which is responsible for resolving information about a name.
 
-Resolvers are a core part of the ENS protocol. They give each name, represented as a ["node"](/resolution/names#namehash), the power to control the resolution process for itself and all of its subnames. Resolvers were originally standardized in [EIP 137](https://eips.ethereum.org/EIPS/eip-137), but have since received a few updates such as [EIP 181](https://eips.ethereum.org/EIPS/eip-181), [EIP 2304](https://eips.ethereum.org/EIPS/eip-2304), and [ENSIP-10](/ensip/10).
+Resolvers are a core part of the ENS protocol. They give each name, represented as a ["node"](/es/resolution/names#namehash), the power to control the resolution process for itself and all of its subnames. Resolvers were originally standardized in [EIP 137](https://eips.ethereum.org/EIPS/eip-137), but have since received a few updates such as [EIP 181](https://eips.ethereum.org/EIPS/eip-181), [EIP 2304](https://eips.ethereum.org/EIPS/eip-2304), and [ENSIP-10](/ensip/10).
 
-You can find the latest default resolver implementation, called the Public Resolver, on [GitHub](https://github.com/ensdomains/ens-contracts/blob/mainnet/contracts/resolvers/PublicResolver.sol) and [Etherscan](/learn/deployments).
+You can find the latest default resolver implementation, called the Public Resolver, on [GitHub](https://github.com/ensdomains/ens-contracts/blob/mainnet/contracts/resolvers/PublicResolver.sol) and [Etherscan](/es/learn/deployments).
 
 ## Resolver Interface
 
-You can view an extended list of resolver methods [here](/resolvers/interfaces), however a simple interface might look something like this:
+You can view an extended list of resolver methods [here](/es/resolvers/interfaces), however a simple interface might look something like this:
 
 ```solidity
 interface IMyResolver {
@@ -50,7 +50,7 @@ Don't forget to add `0x9061b923` to your [EIP-165](https://eips.ethereum.org/) `
 
 ## Onchain Resolvers
 
-By default, ENS names use the [Public Resolver](/resolvers/public) which stores all data onchain. An extremely basic resolver that stores a mapping of ENS names to addresses might look like this:
+By default, ENS names use the [Public Resolver](/es/resolvers/public) which stores all data onchain. An extremely basic resolver that stores a mapping of ENS names to addresses might look like this:
 
 ```solidity
 contract OnchainResolver {
@@ -79,7 +79,7 @@ Since the mapping is stored internally, it costs gas for the owner of a name to 
 
 ## Offchain Resolvers
 
-An offchain resolver is a resolver that implements CCIP Read to defer a name's resolution to an HTTP server. This server can then load data from any source including offchain databases, APIs, or other blockchains. [Learn more about CCIP Read](/resolvers/ccip-read).
+An offchain resolver is a resolver that implements CCIP Read to defer a name's resolution to an HTTP server. This server can then load data from any source including offchain databases, APIs, or other blockchains. [Learn more about CCIP Read](/es/resolvers/ccip-read).
 
 An equivalent offchain resolver to the above onchain example looks something like this:
 
