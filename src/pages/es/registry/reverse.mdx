@@ -1,0 +1,175 @@
+# Registradores Inversos
+
+:::info
+La resolución inversa es parte de la característica de [nombre primario](/es/web/reverse). Si solo estás tratando de obtener un nombre para una dirección, deberías empezar ahí.
+:::
+
+La resolución inversa es el proceso de mapear una dirección EVM (ej, `0x1234...5678`) a un nombre ENS en varias cadenas diferentes. Esto se logra usando espacios de nombres especiales en el registro ENS:
+
+| Espacio de Nombres Inverso | Nombre en el registro ENS |
+| ------------------ | ------------------------ |
+| Por defecto (Ethereum) | reverse                  |
+| Ethereum           | addr.reverse             |
+| Arbitrum           | 8000a4b1.reverse         |
+| Base               | 80002105.reverse         |
+| Linea              | 8000e708.reverse         |
+| Optimism           | 8000000a.reverse         |
+| Scroll             | 80082750.reverse         |
+
+Los espacios de nombres L2 se derivan vía `[coinTypeAsHex].reverse` como se especifica en [ENSIP-19](/ensip/19/), y los registros inversos de los usuarios pueden resolverse vía `[address].[reverseNamespace]`.
+
+Por ejemplo, la cuenta `0xb8c2C29ee19D8307cb7255e1Cd9CbDE883A267d5` puede reclamar `b8c2c29ee19d8307cb7255e1cd9cbde883a267d5.addr.reverse` en el registro ENS. Después de hacerlo, puede configurar un resolver y exponer metadatos, como un nombre ENS canónico para esta dirección.
+
+El registrador inverso proporciona funciones para `claim` un registro inverso,
+así como una función de conveniencia (`setName`) para configurar el registro como se usa más comúnmente, como una forma de especificar un nombre canónico para una dirección.
+
+## Cadenas Soportadas
+
+Los Registradores Inversos están desplegados en Ethereum Mainnet (L1) y L2s populares (Base, OP Mainnet, Arbitrum One, Scroll, y Linea). Esto permite a los usuarios establecer un registro inverso específico de cadena mientras también soporta un registro inverso por defecto en L1 que actúa como respaldo cuando no se establece un registro específico de cadena.
+
+En la práctica, se recomienda encarecidamente **no** codificar las direcciones del registrador inverso porque pueden cambiar en el futuro y romper inesperadamente tu aplicación. En su lugar, resuélvelos según [ENSIP-19](/ensip/19).
+
+Para conveniencia, los últimos despliegues de los registradores inversos se listan a continuación.
+
+{/* TODO: Add an example of how to do this */}
+
+### Despliegues de Mainnet
+
+| Cadena              | Dirección                                                                                                                          |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| Por defecto (Ethereum) | [0x283F227c4Bd38ecE252C4Ae7ECE650B0e913f1f9](https://etherscan.io/address/0x283F227c4Bd38ecE252C4Ae7ECE650B0e913f1f9)            |
+| Ethereum           | [0xa58E81fe9b61B5c3fE2AFD33CF304c454AbFc7Cb](https://etherscan.io/address/0xa58E81fe9b61B5c3fE2AFD33CF304c454AbFc7Cb)            |
+| Arbitrum One       | [0x0000000000D8e504002cC26E3Ec46D81971C1664](https://arbiscan.io/address/0x0000000000D8e504002cC26E3Ec46D81971C1664)             |
+| Base               | [0x0000000000D8e504002cC26E3Ec46D81971C1664](https://basescan.org/address/0x0000000000D8e504002cC26E3Ec46D81971C1664)            |
+| Linea              | [0x0000000000D8e504002cC26E3Ec46D81971C1664](https://lineascan.build/address/0x0000000000D8e504002cC26E3Ec46D81971C1664)         |
+| Optimism           | [0x0000000000D8e504002cC26E3Ec46D81971C1664](https://optimistic.etherscan.io/address/0x0000000000D8e504002cC26E3Ec46D81971C1664) |
+| Scroll             | [0x0000000000D8e504002cC26E3Ec46D81971C1664](https://scrollscan.com/address/0x0000000000D8e504002cC26E3Ec46D81971C1664)          |
+
+### Despliegues de Testnet
+
+| Cadena L2 Testnet   | Dirección                                                                                                                                        |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Por defecto (Ethereum) | [0x4F382928805ba0e23B30cFB75fC9E848e82DFD47](https://sepolia.etherscan.io/address/0x4F382928805ba0e23B30cFB75fC9E848e82DFD47)                  |
+| Ethereum           | [0xA0a1AbcDAe1a2a4A2EF8e9113Ff0e02DD81DC0C6](https://sepolia.etherscan.io/address/0xA0a1AbcDAe1a2a4A2EF8e9113Ff0e02DD81DC0C6)                  |
+| Arbitrum Sepolia   | [0x00000BeEF055f7934784D6d81b6BC86665630dbA](https://sepolia.arbiscan.io/address/0x00000BeEF055f7934784D6d81b6BC86665630dbA)                   |
+| Base Sepolia       | [0x00000BeEF055f7934784D6d81b6BC86665630dbA](https://sepolia.basescan.org/address/0x00000BeEF055f7934784D6d81b6BC86665630dbA)                  |
+| Linea Sepolia      | [0x00000BeEF055f7934784D6d81b6BC86665630dbA](https://sepolia.lineascan.build/address/0x00000BeEF055f7934784D6d81b6BC86665630dbA)               |
+| Optimism           | [0x00000BeEF055f7934784D6d81b6BC86665630dbA](https://sepolia-optimism.etherscan.io/address/address/0x00000BeEF055f7934784D6d81b6BC86665630dbA) |
+| Scroll Sepolia     | [0x00000BeEF055f7934784D6d81b6BC86665630dbA](https://sepolia.scrollscan.com/address/0x00000BeEF055f7934784D6d81b6BC86665630dbA)                |
+
+## Establecer Registros
+
+La interfaz actualizada del Registrador Inverso expone métodos para soportar que faciliten establecer un registro inverso para un EOA o contrato inteligente:
+
+```solidity
+/// @notice Establece el registro `name()` para el registro ENS inverso asociado con la cuenta que llama.
+/// @param name El nombre a establecer
+/// @return El hash del nodo ENS del registro inverso
+function setName(string memory name) external returns (bytes32);
+
+/// @notice Establece el registro `name()` para el registro ENS inverso asociado con la cuenta addr proporcionada.
+///         Puede usarse si el addr es un contrato que es propiedad de un SCA.
+/// @param addr La dirección para establecer el nombre
+/// @param name El nombre a establecer
+/// @return El hash del nodo ENS del registro inverso
+function setNameForAddr(
+    address addr,
+    string memory name
+) external returns (bytes32);
+
+/// @notice Establece el registro `name()` para el registro ENS inverso asociado con el contrato proporcionado que es propiedad con `Ownable`.
+/// @param contractAddr La dirección del contrato para establecer el nombre (implementando Ownable)
+/// @param owner El propietario del contrato (vía Ownable)
+/// @param name El nombre a establecer
+/// @param coinTypes Los tipos de moneda a establecer. Debe ser inclusivo del tipo de moneda para el contrato
+/// @param signatureExpiry El vencimiento de la firma
+/// @param signature La firma de una dirección que devolverá true en isValidSignature para el propietario
+/// @return El hash del nodo ENS del registro inverso
+function setNameForOwnableWithSignature(
+    address contractAddr,
+    address owner,
+    string calldata name,
+    uint256[] memory coinTypes,
+    uint256 signatureExpiry,
+    bytes calldata signature
+) external returns (bytes32);
+
+/// @notice Establece el registro `name()` para el registro ENS inverso asociado con la cuenta addr proporcionada usando una firma.
+/// @param addr La dirección para establecer el nombre
+/// @param name El nombre del registro inverso
+/// @param coinTypes Los tipos de moneda a establecer. Debe ser inclusivo del tipo de moneda para el contrato
+/// @param signatureExpiry Fecha cuando la firma expira
+/// @param signature La firma del addr
+/// @return El hash del nodo ENS del registro inverso
+function setNameForAddrWithSignature(
+    address addr,
+    string calldata name,
+    uint256[] calldata coinTypes,
+    uint256 signatureExpiry,
+    bytes calldata signature
+) external returns (bytes32);
+```
+
+### Firmas
+
+Formato de firma para `setNameForAddrWithSignature`:
+
+```
+validatorAddress, // la dirección del registrador inverso
+functionSignature, // 0x2023a04c
+name, // valor del nombre string
+addr, // dirección para establecer el nombre
+coinTypes, // array de coinTypes que se quieren establecer
+signatureExpiry // vencimiento de la firma, hasta 1 hora en el futuro
+```
+
+Formato de firma para `setNameForOwnableWithSignature`:
+
+```
+validatorAddress, // la dirección del registrador inverso
+functionSignature, // 0x975713ad
+name, // valor del nombre string
+contractAddr, // dirección del contrato para establecer el nombre
+owner, // dirección del propietario del contrato (es decir, la firma siendo verificada)
+coinTypes, // array de coinTypes que se quieren establecer
+signatureExpiry // vencimiento de la firma, hasta 1 hora en el futuro
+```
+
+## Otras Funciones
+
+:::info
+Las siguientes funciones solo están disponibles en el Registrador Inverso ETH.
+:::
+
+### Reclamar Dirección
+
+```solidity
+function claim(address owner) public returns (bytes32);
+```
+
+Reclama la dirección del llamador en el registrador inverso, asignando la propiedad del registro inverso a `owner`. Equivalente a llamar `claimWithResolver(owner, 0)`. No establece realmente el registro inverso.
+
+```solidity
+function claimWithResolver(address owner, address resolver) public returns (bytes32)
+```
+
+Reclama la dirección del llamador en el registrador inverso, asignando la `propiedad` del registro inverso al propietario. Si `resolver` es distinto de cero, también actualiza el resolver del registro.
+
+Después de llamar esta función:
+
+- El registro inverso para el llamador (1234....addr.reverse) es propiedad de `owner`.
+- Si `resolver` es distinto de cero, el registro inverso para el llamador tiene su resolver establecido a `resolver`; de lo contrario se deja sin cambios.
+
+### Obtener Resolver Por Defecto
+
+```solidity
+function defaultResolver() public view returns (address);
+```
+
+Devuelve la dirección del contrato resolver que el `ReverseRegistrar` usa para `setName`.
+
+## Qué Hacer y Qué No Hacer
+
+Bajo ninguna situación se recomienda forzar a un usuario a cambiar su nombre primario, ni hacerlo sin notificar claramente al usuario de lo que la transacción que está a punto de ejecutar podría modificar.
+
+Hacerlo podría ser visto como comportamiento hostil o no deseado por los usuarios finales y podría degradar su experiencia con tu aplicación.
