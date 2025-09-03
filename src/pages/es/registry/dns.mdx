@@ -33,7 +33,7 @@ No hay tarifa de protocolo ENS para importar un nombre DNS, pero requiere una gr
 
 ## Verificación Fuera de Cadena (Sin Gas)
 
-[EP 5.1](/dao/proposals/5.1) introdujo un nuevo DNSSECOracle y DNSRegistrar que hace posible realizar verificación DNSSEC en tiempo de consulta, habilitando el uso verdaderamente gratuito de nombres DNS en ENS. Llamamos a esto "DNSSEC sin gas".
+[EP 5.1](/es/dao/proposals/5.1) introdujo un nuevo DNSSECOracle y DNSRegistrar que hace posible realizar verificación DNSSEC en tiempo de consulta, habilitando el uso verdaderamente gratuito de nombres DNS en ENS. Llamamos a esto "DNSSEC sin gas".
 
 Funciona habilitando [resolución comodín](/ensip/10) a nivel de TLD DNS. Durante el [proceso de resolución de nombres](/es/resolution), si un nombre no existe ya en cadena pero ha sido configurado para uso en ENS, la prueba DNSSEC será obtenida fuera de cadena vía [CCIP Read](https://eips.ethereum.org/EIPS/eip-3668) y luego verificada en cadena con el mismo DNSSECOracle mencionado anteriormente.
 
