@@ -56,11 +56,11 @@ Aunque esto puede sonar simple en teoría, es fácil tropezarse con los detalles
 
 ### Entender el Proceso de Verificación
 
-Lo clave a entender es que la dirección hacia adelante _para una cadena dada_ debe coincidir con el registro inverso en el reverse registrar de la cadena respectiva.
+Lo importante a entender es que la dirección hacia adelante _para una cadena dada_ debe coincidir con el registro inverso en el reverse registrar de la cadena respectiva.
 
-Digamos que poseo `nick.eth`. El nombre resuelve a `0x1234...5678` porque he establecido la dirección ETH para ese nombre. Llamo a `setName("nick.eth")` en el reverse registrar de Base, y espero que mi nombre primario ahora sea `nick.eth` en Base. Pero ese no es realmente el caso.
+Supongamos que poseo `nick.eth`. El nombre resuelve a `0x1234...5678` porque he establecido la dirección ETH para ese nombre. Llamo a `setName("nick.eth")` en el reverse registrar de Base, y espero que mi nombre primario ahora sea `nick.eth` en Base. Pero ese no es realmente el caso.
 
-Los nombres ENS pueden resolver a [diferentes direcciones en diferentes cadenas](/es/web/resolution), y dado que `nick.eth` en el ejemplo anterior solo ha especificado una dirección de Ethereum Mainnet, el proceso de verificación fallará. Para arreglar esto, necesito establecer la dirección de Base para `nick.eth` que está en L1 en este caso. Esto se hace llamando a la siguiente función en el resolver para el nombre.
+Los nombres ENS pueden resolver a [diferentes direcciones en diferentes cadenas](/es/web/resolution), y dado que `nick.eth` en el ejemplo anterior solo ha especificado una dirección de Ethereum Mainnet, el proceso de verificación fallará. Para solucionarlo, necesito establecer la dirección de Base para `nick.eth` que está en L1 en este caso. Para esto, se llama a la siguiente función en el resolver para el nombre.
 
 ```solidity
 setAddr(
@@ -179,7 +179,7 @@ Si eres un desarrollador de librerías buscando implementar esta funcionalidad, 
 
 ## Establecer Nombres Primarios
 
-Dado que los nombres primarios requieren resolución bidireccional, técnicamente hay dos pasos para configurarlo. Digamos que el usuario `0x1234...5678` quiere establecer su nombre primario en Base a `nick.eth`.
+Como los nombres primarios requieren resolución bidireccional, hay dos pasos para configurarlo. Supongamos que el usuario `0x1234...5678` quiere establecer su nombre primario en Base a `nick.eth`.
 
 Primero, el usuario necesitaría establecer la dirección de Base para `nick.eth` a `0x1234...5678`. [Lee más sobre direcciones multichain](/es/web/resolution#multi-chain-addresses-btc-ltc-etc) para entender cómo funciona esto.
 

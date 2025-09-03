@@ -112,7 +112,7 @@ variará dependiendo de cómo la librería que estás usando ha decidido manejar
 
 :::note
 Para Avatares NFT EIP-155 el nft debe ser propiedad de la dirección de wallet a la que el nombre ENS
-resuelve. Esto se hace verificando el método `ownerOf` en el contrato NFT.
+resuelve. Para esto, se verifica el método `ownerOf` en el contrato NFT.
 :::
 
 ## Esquemas comunes que no están oficialmente soportados
@@ -130,8 +130,8 @@ A continuación se muestra información sobre los avatares que tu aplicación po
 | Propiedad del Archivo:  | Info/Recomendación                                                             |
 | -------------- | ------------------------------------------------------------------------------- |
 | Extensión del Archivo | Principalmente `png`, `jpeg`, `jpg`, `webp`, `gif`, `webm`, pero podría ser cualquier cosa       |
-| Tamaño del Archivo      | Recomendamos tener timeouts sensibles                                           |
-| Proporción de Aspecto   | Recomendamos `object-fit: cover` o establecer un color de fondo                  |
-| Transparencia   | Recomendamos establecer un color de fondo ya que algunas imágenes pueden contener transparencia |
+| Tamaño del Archivo      | Es recomendable tener timeouts sensibles                                           |
+| Proporción de Aspecto   | Es recomendable usar `object-fit: cover` o establecer un color de fondo                  |
+| Transparencia   | Es recomendable establecer un color de fondo ya que algunas imágenes pueden contener transparencia |
 
-Afortunadamente la mayoría de navegadores y librerías de red tienen timeouts por defecto para comenzar, recomendamos encarecidamente que si estás haciendo cualquier descarga o obtención manual de avatar agregues un timeout sensato.
+La mayoría de navegadores y librerías de red tienen timeouts por defecto, pero recomendamos que si estás haciendo descargas o obtención manual de avatares, agregues un timeout sensato.
