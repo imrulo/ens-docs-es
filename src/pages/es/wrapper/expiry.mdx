@@ -1,0 +1,111 @@
+import { Card } from '../../components/ui/Card'
+
+# Name Wrapper Expiry
+
+In order to burn any fuses on a name, you must also set an **expiry** on it. This expiry determines how long any burned fuses are active for, and may also determine whether the name itself has expired.
+
+If the name is a .eth 2LD, then the expiry will automatically be set to the same expiry in the .eth Registrar. But for all other names, the parent can choose what expiry to set for a child name.
+
+## Max Expiry for Subnames
+
+By default, the expiry for a name can only be set by the parent, and can only be increased, not decreased. The maximum value for the expiry of a name is the expiry of its parent name.
+
+For example, say a name expires in 5 years. The owner of the name can then set the expiry of its subnames to a maximum of 5 years as well. But the parent could also choose to set the expiry to something less. Let's say the parent sets the expiry of one of its subnames to 2 years.
+
+Then in turn, the owner of the subname can set the expiry of its own subnames up to a maximum of 2 years, but it could also set it to something less, like 1 year.
+
+<Card>
+  <img src="/img/namewrapper-expiry-subnames.jpg" alt="Expiry Diagram" />
+</Card>
+
+The parent can set a different expiry for different subnames too, just as it can burn different fuses for different subnames.
+
+## Renewals
+
+When a wrapped .eth second-level name (like `name.eth`) is renewed, that new expiry is automatically set in the Name Wrapper as well as in the .eth Registrar. However, the expiry for any other .eth names (like `sub.name.eth`) will not be automatically extended when the parent expiry is extended.
+
+The parent can extend the expiry for an existing subname at any time, even if the subname has been emancipated.
+
+The parent can also choose to approve a separate contract to allow the expiry for subnames to be extended by the subname owner or other accounts.
+
+That is basically how .eth second-level names work: Since the `eth` node is locked in the registrar contract and has the Name Wrapper (which exposes a renew method) approved as a controller, .eth second-level names can be directly renewed by their owners.
+
+The parent can further lock this approved contract in by burning the **`CANNOT_APPROVE`** fuse.
+
+There is also a special parent-controlled fuse called **`CAN_EXTEND_EXPIRY`**. If the parent burns this fuse on a subname, then the owner of that subname (or any approved controller) can also extend the expiry.
+
+So, if you are running a subname registrar and you want to enable "unruggable renewals", you can use one of the above options (or both).
+
+## Special Cases for .eth 2LDs
+
+For .eth second-level names, the end of the name's grace period (from the .eth Registrar) is used for the expiry inside of the Name Wrapper.
+
+So if the name's expiration date in the Registrar is January 1st, then the expiry in the Name Wrapper will reflect that date _plus_ the grace period (currently 90 days, so approximately April 1st, depending on the year).
+
+When the name's expiration date (from the .eth Registrar) has been reached, and the name is now in the grace period, all Name Wrapper operations on the name will be restricted.
+
+The owner will _not_ yet lose ownership of the name, but they will also not be able to unwrap or update the name until it has been renewed.
+
+## Expiry Implications
+
+When a name is merely **Wrapped** but not **Emancipated** or **Locked**, parent-controlled fuses can still be burned. This means that the parent can burn a custom fuse for a limited amount of time.
+
+When the expiry (end of grace period for .eth 2LDs) is reached, all fuses will be reset, but the name will otherwise be unaffected.
+
+When a name is **Emancipated** or **Locked**, the expiry has an important additional effect. In this scenario, when the expiry (end of grace period for .eth 2LDs) has been reached, **the name itself will expire**, and the owner **loses ownership** of the name.
+
+---
+
+# Vencimiento del Name Wrapper
+
+Para poder quemar cualquier fusible en un nombre, también debes establecer un **vencimiento** en él. Este vencimiento determina por cuánto tiempo están activos los fusibles quemados, y también puede determinar si el nombre mismo ha expirado.
+
+Si el nombre es un 2LD .eth, entonces el vencimiento se establecerá automáticamente al mismo vencimiento en el Registrador .eth. Pero para todos los demás nombres, el padre puede elegir qué vencimiento establecer para un nombre hijo.
+
+## Vencimiento Máximo para Subnombres
+
+Por defecto, el vencimiento para un nombre solo puede ser establecido por el padre, y solo puede ser aumentado, no disminuido. El valor máximo para el vencimiento de un nombre es el vencimiento de su nombre padre.
+
+Por ejemplo, digamos que un nombre expira en 5 años. El propietario del nombre puede entonces establecer el vencimiento de sus subnombres a un máximo de 5 años también. Pero el padre también podría elegir establecer el vencimiento a algo menor. Digamos que el padre establece el vencimiento de uno de sus subnombres a 2 años.
+
+Entonces a su vez, el propietario del subnombre puede establecer el vencimiento de sus propios subnombres hasta un máximo de 2 años, pero también podría establecerlo a algo menor, como 1 año.
+
+<Card>
+  <img src="/img/namewrapper-expiry-subnames.jpg" alt="Expiry Diagram" />
+</Card>
+
+El padre puede establecer un vencimiento diferente para diferentes subnombres también, igual que puede quemar diferentes fusibles para diferentes subnombres.
+
+## Renovaciones
+
+Cuando un nombre de segundo nivel .eth envuelto (como `name.eth`) es renovado, ese nuevo vencimiento se establece automáticamente en el Name Wrapper así como en el Registrador .eth. Sin embargo, el vencimiento para cualquier otro nombre .eth (como `sub.name.eth`) no se extenderá automáticamente cuando se extienda el vencimiento del padre.
+
+El padre puede extender el vencimiento para un subnombre existente en cualquier momento, incluso si el subnombre ha sido emancipado.
+
+El padre también puede elegir aprobar un contrato separado para permitir que el vencimiento para subnombres sea extendido por el propietario del subnombre u otras cuentas.
+
+Así es básicamente como funcionan los nombres de segundo nivel .eth: Como el nodo `eth` está bloqueado en el contrato registrador y tiene el Name Wrapper (que expone un método renew) aprobado como controlador, los nombres de segundo nivel .eth pueden ser renovados directamente por sus propietarios.
+
+El padre puede bloquear aún más este contrato aprobado quemando el fusible **`CANNOT_APPROVE`**.
+
+También hay un fusible especial controlado por el padre llamado **`CAN_EXTEND_EXPIRY`**. Si el padre quema este fusible en un subnombre, entonces el propietario de ese subnombre (o cualquier controlador aprobado) también puede extender el vencimiento.
+
+Así que, si estás ejecutando un registrador de subnombres y quieres habilitar "renovaciones unruggable", puedes usar una de las opciones anteriores (o ambas).
+
+## Casos Especiales para 2LDs .eth
+
+Para nombres de segundo nivel .eth, el final del período de gracia del nombre (del Registrador .eth) se usa para el vencimiento dentro del Name Wrapper.
+
+Así que si la fecha de expiración del nombre en el Registrador es el 1 de enero, entonces el vencimiento en el Name Wrapper reflejará esa fecha _más_ el período de gracia (actualmente 90 días, así que aproximadamente el 1 de abril, dependiendo del año).
+
+Cuando se ha alcanzado la fecha de expiración del nombre (del Registrador .eth), y el nombre ahora está en el período de gracia, todas las operaciones del Name Wrapper en el nombre estarán restringidas.
+
+El propietario _aún no_ perderá la propiedad del nombre, pero tampoco podrá desenrollar o actualizar el nombre hasta que haya sido renovado.
+
+## Implicaciones del Vencimiento
+
+Cuando un nombre está meramente **Envuelto** pero no **Emancipado** o **Bloqueado**, los fusibles controlados por el padre aún pueden ser quemados. Esto significa que el padre puede quemar un fusible personalizado por una cantidad limitada de tiempo.
+
+Cuando se alcanza el vencimiento (final del período de gracia para 2LDs .eth), todos los fusibles se reiniciarán, pero el nombre por lo demás no se verá afectado.
+
+Cuando un nombre está **Emancipado** o **Bloqueado**, el vencimiento tiene un efecto adicional importante. En este escenario, cuando se ha alcanzado el vencimiento (final del período de gracia para 2LDs .eth), **el nombre mismo expirará**, y el propietario **pierde la propiedad** del nombre.

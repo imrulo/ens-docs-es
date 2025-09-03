@@ -1,0 +1,321 @@
+# Name Wrapper Contract Details
+
+The Name Wrapper contract is deployed on these chains:
+
+- Mainnet: [wrapper.ens.eth](https://etherscan.io/address/0xD4416b13d2b3a9aBae7AcD5D6C2BbDBE25686401#code) ( `0xD4416b13d2b3a9aBae7AcD5D6C2BbDBE25686401` )
+- Sepolia: [wrapper.ens.eth](https://sepolia.etherscan.io/address/0x0635513f179D50A207757E05759CbD106d7dFcE8#code) ( `0x0635513f179D50A207757E05759CbD106d7dFcE8` )
+
+## Wrapping and Unwrapping
+
+When wrapping a .eth 2LD, you transfer the Owner (Registrant) of the ERC-721 NFT to the Name Wrapper contract.
+
+The contract will then automatically take over the Manager (Controller) for the name as well.
+
+You can do this by calling the [wrapETH2LD](https://github.com/ensdomains/ens-contracts/tree/master/contracts/wrapper#wrapeth2ld) method. Or, you can directly transfer the ERC-721 NFT to the Name Wrapper contract. In return, the contract issues you an ERC-1155 NFT.
+
+```solidity
+NameWrapper.wrapETH2LD(string label, address wrappedOwner, uint16 ownerControlledFuses, address resolver)
+
+// For example
+wrapETH2LD(
+    "myname", // "myname.eth" but only the label
+    0x1234..., // The address you want to own the wrapped name
+    0, // The owner-controlled fuse bits OR'd together, that you want to burn
+    0x1234... // The address of the resolver you want to use
+)
+```
+
+When wrapping any other ENS name, you transfer the Manager (Controller) of the name to the Name Wrapper contract. You can do this by calling the [wrap](https://github.com/ensdomains/ens-contracts/tree/master/contracts/wrapper#wrap) method. In return, the contract issues you an ERC-1155 NFT.
+
+```solidity
+NameWrapper.wrap(bytes name, address wrappedOwner, address resolver)
+
+// For example
+wrapETH2LD(
+    0x03737562046e616d650365746800, // The DNS-encoded version of "sub.myname.eth"
+    0x1234..., // The address you want to own the wrapped name
+    0x1234... // The address of the resolver you want to use
+)
+```
+
+As the owner of the wrapped name, you can unwrap at any time by calling either [unwrapETH2LD](https://github.com/ensdomains/ens-contracts/tree/master/contracts/wrapper#unwrapeth2ld) or [unwrap](https://github.com/ensdomains/ens-contracts/tree/master/contracts/wrapper#unwrap). You can do this as long as the permission to unwrap has not been revoked.
+
+```solidity
+NameWrapper.unwrapETH2LD(bytes32 labelhash, address registrant, address controller)
+
+// For example
+unwrapETH2LD(
+    0x952f..., // "myname.eth" but only the labelhash: keccak256('myname')
+    0x1234..., // The address you want to own the unwrapped name
+    0x1234... // The address you want to be the manager of the unwrapped name
+)
+
+NameWrapper.unwrap(bytes32 parentNode, bytes32 labelhash, address controller)
+
+// For example
+unwrap(
+    0x6cbc..., // The namehash of the parent node, e.g. "myname.eth"
+    0xfa1e..., // The labelhash of the child to unwrap, e.g. keccak256('sub')
+    0x1234... // The address you want to be the manager of the unwrapped name
+)
+```
+
+## Burning Fuses / Setting Expiry
+
+If you are wrapping an existing .eth 2LD, then you can pass in the owner-controlled fuses at that time, see the above [Wrapping and Unwrapping](#wrapping-and-unwrapping) section. If you are creating a new subname, and you want to burn fuses at the same time, see the below [Creating Subnames](#creating-subnames) section.
+
+For other existing wrapped names, you can burn fuses with either the `setFuses` or `setChildFuses` methods.
+
+The `setFuses` method is used for a name that you own, but you do not necessarily own the parent of. You have the ability to burn any [Owner-Controlled Fuses](/wrapper/fuses#owner-controlled-fuses) you want. Note that your name must first be [Emancipated](/wrapper/states#emancipated) in order for you to be able to burn any owner-controlled fuses. All .eth 2LDs are automatically emancipated upon wrapping.
+
+When burning owner-controlled fuses, at a minimum you must burn the **`CANNOT_UNWRAP`** fuse (if it has not already been burned).
+
+```solidity
+NameWrapper.setFuses(bytes32 node, uint16 ownerControlledFuses)
+
+// For example
+setFuses(
+    0x6cbc..., // The namehash of the node, e.g. "myname.eth"
+    1 // The owner-controlled fuse bits OR'd together, that you want to burn
+)
+```
+
+The `setChildFuses` method is used for a subname that you own the parent of. As long as the subname has not yet been [Emancipated](/wrapper/states#emancipated), you can burn whatever [Parent-Controlled Fuses](/wrapper/fuses#parent-controlled-fuses) and [Owner-Controlled Fuses](/wrapper/fuses#owner-controlled-fuses) you want. At the same time, you must set an expiry for those fuses, if one is not already set. Note that your name must first be [Locked](/wrapper/states#locked) in order for you to burn fuses on any subnames.
+
+If you are only burning parent-controlled fuses, then there are no further restrictions. However, if you are burning owner-controlled fuses, then you must at a minimum burn both **`PARENT_CANNOT_CONTROL`** and **`CANNOT_UNWRAP`** on the subname to lock it at the same time.
+
+```solidity
+NameWrapper.setChildFuses(bytes32 parentNode, bytes32 labelhash, uint32 fuses, uint64 expiry)
+
+// For example
+setChildFuses(
+    0x6cbc..., // The namehash of the parent node, e.g. "myname.eth"
+    0xfa1e..., // The labelhash of the child, e.g. keccak256('sub')
+    65537, // The fuse bits OR'd together, that you want to burn
+    2021232060 // The expiry for the subname
+)
+```
+
+## Creating Subnames
+
+This is done very similarly to how unwrapped subnames are created. You call either `setSubnodeOwner` or `setSubnodeRecord` on the wrapper contract. When a name is wrapped, all subnames created will also be wrapped by default.
+
+You can also pass in the fuses and expiry at the same time, so that the subname will be created in the fuse/permission state that you want, without needing to perform an extra transaction.
+
+```solidity
+NameWrapper.setSubnodeOwner(bytes32 parentNode, string label, address owner, uint32 fuses, uint64 expiry)
+
+// For example
+setSubnodeOwner(
+    0x6cbc..., // The namehash of the parent node, e.g. "myname.eth"
+    "sub", // The label of the subname to create
+    0x1234..., // The address you want to be the owner of the new subname
+    65536, // The fuse bits OR'd together, that you want to burn
+    2021232060 // The expiry for the subname
+)
+
+NameWrapper.setSubnodeRecord(bytes32 parentNode, string label, address owner, address resolver, uint64 ttl, uint32 fuses, uint64 expiry)
+
+// For example
+setSubnodeRecord(
+    0x6cbc..., // The namehash of the parent node, e.g. "myname.eth"
+    "sub", // The label of the subname to create
+    0x1234..., // The address you want to be the owner of the new subname
+    0x5678..., // The address of the resolver to set for the new subname
+    0, // The TTL to set for the new subname
+    65536, // The fuse bits OR'd together, that you want to burn
+    2021232060 // The expiry for the subname
+)
+```
+
+## Approved Operators
+
+### Full-Control Operator Batch Approvals
+
+Your wrapped name is an ERC-1155 NFT that supports the `setApprovalForAll` method. When you approve an address using this method, it will have **full control** over all wrapped ENS names that you own.
+
+This method is typically used by NFT marketplace contracts.
+
+### Name-Specific Subname Renewal Manager Approvals
+
+The Name Wrapper also supports the ERC-721 `approve` method. This method is used to approve a single "Subname Renewal Manager" for a specific name.
+
+The "Renewal Manager" does not have full control over your wrapped name, it can only set / extend the expiry on subnames.
+
+Further, if you burn the **`CANNOT_APPROVE`** fuse on your name, then the approved renewal manager can no longer be changed. You can use this to "lock in" that contract, so that you can guarantee to all subname owners that renewals/extensions can always be done.
+
+This approved renewal manager will be reset if the wrapped NFT is burned or re-minted, which happens if you unwrap the name, or if an expired name gets re-registered. It will also be reset if the wrapped NFT is transferred, **unless** the **`CANNOT_APPROVE`** fuse is burned.
+
+### Example - Subname Registrar Contract
+
+You can use these operator approval methods to setup a separate contract that can take certain actions on your behalf. One example is setting up a "subname registrar" to allow users to register/renew subnames.
+
+That subname registrar contract would act on your behalf and allow users to register subnames. To allow this, you would call `setApprovalForAll` to give that contract full control over your name (and thus the ability to create subnames).
+
+Then, to enable "unruggable renewals", you could call `approve` on that same contract (or a separate one specific to renewals if you wish) and burn **`CANNOT_APPROVE`** to lock in subname renewals for that contract.
+
+If you need to later on, you would still be able to revoke with `setApprovalForAll`. So the contract would lose full control over your name (and the ability to create new subnames), but it would still be able to perpetually renew/extend existing subnames.
+
+And you can do all of this **without** needing to send your wrapped NFT to that contract.
+
+---
+
+# Detalles del Contrato Name Wrapper
+
+El contrato Name Wrapper está desplegado en estas cadenas:
+
+- Mainnet: [wrapper.ens.eth](https://etherscan.io/address/0xD4416b13d2b3a9aBae7AcD5D6C2BbDBE25686401#code) ( `0xD4416b13d2b3a9aBae7AcD5D6C2BbDBE25686401` )
+- Sepolia: [wrapper.ens.eth](https://sepolia.etherscan.io/address/0x0635513f179D50A207757E05759CbD106d7dFcE8#code) ( `0x0635513f179D50A207757E05759CbD106d7dFcE8` )
+
+## Envolver y Desenrollar
+
+Cuando envuelves un 2LD .eth, transfieres el Propietario (Registrante) del NFT ERC-721 al contrato Name Wrapper.
+
+El contrato entonces tomará automáticamente el control del Administrador (Controlador) para el nombre también.
+
+Puedes hacer esto llamando al método [wrapETH2LD](https://github.com/ensdomains/ens-contracts/tree/master/contracts/wrapper#wrapeth2ld). O, puedes transferir directamente el NFT ERC-721 al contrato Name Wrapper. A cambio, el contrato te emite un NFT ERC-1155.
+
+```solidity
+NameWrapper.wrapETH2LD(string label, address wrappedOwner, uint16 ownerControlledFuses, address resolver)
+
+// Por ejemplo
+wrapETH2LD(
+    "myname", // "myname.eth" pero solo la etiqueta
+    0x1234..., // La dirección que quieres que posea el nombre envuelto
+    0, // Los bits de fusibles controlados por el propietario OR'd juntos, que quieres quemar
+    0x1234... // La dirección del resolver que quieres usar
+)
+```
+
+Cuando envuelves cualquier otro nombre ENS, transfieres el Administrador (Controlador) del nombre al contrato Name Wrapper. Puedes hacer esto llamando al método [wrap](https://github.com/ensdomains/ens-contracts/tree/master/contracts/wrapper#wrap). A cambio, el contrato te emite un NFT ERC-1155.
+
+```solidity
+NameWrapper.wrap(bytes name, address wrappedOwner, address resolver)
+
+// Por ejemplo
+wrapETH2LD(
+    0x03737562046e616d650365746800, // La versión codificada DNS de "sub.myname.eth"
+    0x1234..., // La dirección que quieres que posea el nombre envuelto
+    0x1234... // La dirección del resolver que quieres usar
+)
+```
+
+Como propietario del nombre envuelto, puedes desenrollar en cualquier momento llamando a [unwrapETH2LD](https://github.com/ensdomains/ens-contracts/tree/master/contracts/wrapper#unwrapeth2ld) o [unwrap](https://github.com/ensdomains/ens-contracts/tree/master/contracts/wrapper#unwrap). Puedes hacer esto siempre que el permiso para desenrollar no haya sido revocado.
+
+```solidity
+NameWrapper.unwrapETH2LD(bytes32 labelhash, address registrant, address controller)
+
+// Por ejemplo
+unwrapETH2LD(
+    0x952f..., // "myname.eth" pero solo el labelhash: keccak256('myname')
+    0x1234..., // La dirección que quieres que posea el nombre desenrollado
+    0x1234... // La dirección que quieres que sea el administrador del nombre desenrollado
+)
+
+NameWrapper.unwrap(bytes32 parentNode, bytes32 labelhash, address controller)
+
+// Por ejemplo
+unwrap(
+    0x6cbc..., // El namehash del nodo padre, ej. "myname.eth"
+    0xfa1e..., // El labelhash del hijo a desenrollar, ej. keccak256('sub')
+    0x1234... // La dirección que quieres que sea el administrador del nombre desenrollado
+)
+```
+
+## Quemar Fusibles / Establecer Vencimiento
+
+Si estás envolviendo un 2LD .eth existente, entonces puedes pasar los fusibles controlados por el propietario en ese momento, ve la sección anterior [Envolver y Desenrollar](#wrapping-and-unwrapping). Si estás creando un nuevo subnombre, y quieres quemar fusibles al mismo tiempo, ve la sección siguiente [Crear Subnombres](#creating-subnames).
+
+Para otros nombres envueltos existentes, puedes quemar fusibles con los métodos `setFuses` o `setChildFuses`.
+
+El método `setFuses` se usa para un nombre que posees, pero no necesariamente posees el padre de. Tienes la capacidad de quemar cualquier [Fusible Controlado por el Propietario](/es/wrapper/fuses#owner-controlled-fuses) que quieras. Nota que tu nombre debe estar primero [Emancipado](/es/wrapper/states#emancipated) para que puedas quemar cualquier fusible controlado por el propietario. Todos los 2LDs .eth se emancipan automáticamente al envolver.
+
+Cuando quemas fusibles controlados por el propietario, como mínimo debes quemar el fusible **`CANNOT_UNWRAP`** (si no ha sido quemado ya).
+
+```solidity
+NameWrapper.setFuses(bytes32 node, uint16 ownerControlledFuses)
+
+// Por ejemplo
+setFuses(
+    0x6cbc..., // El namehash del nodo, ej. "myname.eth"
+    1 // Los bits de fusibles controlados por el propietario OR'd juntos, que quieres quemar
+)
+```
+
+El método `setChildFuses` se usa para un subnombre del cual posees el padre. Mientras el subnombre no haya sido [Emancipado](/es/wrapper/states#emancipated), puedes quemar cualquier [Fusible Controlado por el Padre](/es/wrapper/fuses#parent-controlled-fuses) y [Fusible Controlado por el Propietario](/es/wrapper/fuses#owner-controlled-fuses) que quieras. Al mismo tiempo, debes establecer un vencimiento para esos fusibles, si no se ha establecido uno ya. Nota que tu nombre debe estar primero [Bloqueado](/es/wrapper/states#locked) para que puedas quemar fusibles en cualquier subnombre.
+
+Si solo estás quemando fusibles controlados por el padre, entonces no hay restricciones adicionales. Sin embargo, si estás quemando fusibles controlados por el propietario, entonces debes como mínimo quemar tanto **`PARENT_CANNOT_CONTROL`** como **`CANNOT_UNWRAP`** en el subnombre para bloquearlo al mismo tiempo.
+
+```solidity
+NameWrapper.setChildFuses(bytes32 parentNode, bytes32 labelhash, uint32 fuses, uint64 expiry)
+
+// Por ejemplo
+setChildFuses(
+    0x6cbc..., // El namehash del nodo padre, ej. "myname.eth"
+    0xfa1e..., // El labelhash del hijo, ej. keccak256('sub')
+    65537, // Los bits de fusibles OR'd juntos, que quieres quemar
+    2021232060 // El vencimiento para el subnombre
+)
+```
+
+## Crear Subnombres
+
+Esto se hace de manera muy similar a como se crean los subnombres desenrollados. Llamas a `setSubnodeOwner` o `setSubnodeRecord` en el contrato wrapper. Cuando un nombre está envuelto, todos los subnombres creados también estarán envueltos por defecto.
+
+También puedes pasar los fusibles y vencimiento al mismo tiempo, para que el subnombre se cree en el estado de fusible/permiso que quieras, sin necesidad de realizar una transacción extra.
+
+```solidity
+NameWrapper.setSubnodeOwner(bytes32 parentNode, string label, address owner, uint32 fuses, uint64 expiry)
+
+// Por ejemplo
+setSubnodeOwner(
+    0x6cbc..., // El namehash del nodo padre, ej. "myname.eth"
+    "sub", // La etiqueta del subnombre a crear
+    0x1234..., // La dirección que quieres que sea el propietario del nuevo subnombre
+    65536, // Los bits de fusibles OR'd juntos, que quieres quemar
+    2021232060 // El vencimiento para el subnombre
+)
+
+NameWrapper.setSubnodeRecord(bytes32 parentNode, string label, address owner, address resolver, uint64 ttl, uint32 fuses, uint64 expiry)
+
+// Por ejemplo
+setSubnodeRecord(
+    0x6cbc..., // El namehash del nodo padre, ej. "myname.eth"
+    "sub", // La etiqueta del subnombre a crear
+    0x1234..., // La dirección que quieres que sea el propietario del nuevo subnombre
+    0x5678..., // La dirección del resolver a establecer para el nuevo subnombre
+    0, // El TTL a establecer para el nuevo subnombre
+    65536, // Los bits de fusibles OR'd juntos, que quieres quemar
+    2021232060 // El vencimiento para el subnombre
+)
+```
+
+## Operadores Aprobados
+
+### Aprobaciones de Lote de Operadores de Control Completo
+
+Tu nombre envuelto es un NFT ERC-1155 que soporta el método `setApprovalForAll`. Cuando apruebas una dirección usando este método, tendrá **control completo** sobre todos los nombres ENS envueltos que posees.
+
+Este método es típicamente usado por contratos de marketplace de NFT.
+
+### Aprobaciones de Administrador de Renovación de Subnombres Específicos del Nombre
+
+El Name Wrapper también soporta el método `approve` de ERC-721. Este método se usa para aprobar un solo "Administrador de Renovación de Subnombres" para un nombre específico.
+
+El "Administrador de Renovación" no tiene control completo sobre tu nombre envuelto, solo puede establecer / extender el vencimiento en subnombres.
+
+Además, si quemas el fusible **`CANNOT_APPROVE`** en tu nombre, entonces el administrador de renovación aprobado ya no puede ser cambiado. Puedes usar esto para "bloquear" ese contrato, para que puedas garantizar a todos los propietarios de subnombres que las renovaciones/extensiones siempre se pueden hacer.
+
+Este administrador de renovación aprobado se reiniciará si el NFT envuelto es quemado o re-acuñado, lo que sucede si desenrollas el nombre, o si un nombre expirado se re-registra. También se reiniciará si el NFT envuelto es transferido, **a menos que** el fusible **`CANNOT_APPROVE`** esté quemado.
+
+### Ejemplo - Contrato Registrador de Subnombres
+
+Puedes usar estos métodos de aprobación de operadores para configurar un contrato separado que puede tomar ciertas acciones en tu nombre. Un ejemplo es configurar un "registrador de subnombres" para permitir que los usuarios registren/renueven subnombres.
+
+Ese contrato registrador de subnombres actuaría en tu nombre y permitiría a los usuarios registrar subnombres. Para permitir esto, llamarías `setApprovalForAll` para dar a ese contrato control completo sobre tu nombre (y así la capacidad de crear subnombres).
+
+Entonces, para habilitar "renovaciones unruggable", podrías llamar `approve` en ese mismo contrato (o uno separado específico para renovaciones si lo deseas) y quemar **`CANNOT_APPROVE`** para bloquear las renovaciones de subnombres para ese contrato.
+
+Si necesitas más adelante, aún podrías revocar con `setApprovalForAll`. Así que el contrato perdería control completo sobre tu nombre (y la capacidad de crear nuevos subnombres), pero aún podría renovar/extender perpetuamente los subnombres existentes.
+
+Y puedes hacer todo esto **sin** necesidad de enviar tu NFT envuelto a ese contrato.
