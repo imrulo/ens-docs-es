@@ -1,0 +1,261 @@
+import { NameProcessing } from '../../../components/NameProcessing'
+import { Card } from '../../../components/ui/Card'
+
+# Procesamiento de Nombres [Normalización y recomendaciones para cómo manejar nombres]
+
+Cuando interactúas directamente con los contratos inteligentes ENS, es importante notar que los nombres no se almacenan como strings. Las [librerías](/es/web/libraries) manejan la codificación de nombres por ti cuando implementan resolución básica de nombres, pero podrías necesitar manejar la codificación tú mismo cuando interactúas directamente con el protocolo.
+
+A continuación hay una herramienta interactiva que muestra todos los diferentes formatos de nombres y cómo implementarlos.
+
+<Card>
+  <NameProcessing />
+</Card>
+
+## Normalización de Nombres
+
+La normalización es el proceso de canonizar un nombre antes de ejecutarlo a través del algoritmo [Namehash](#namehash). Es importante siempre normalizar toda la entrada, porque incluso una pequeña diferencia (como un carácter en mayúscula vs minúscula) causará que el namehash sea completamente diferente.
+
+Por ejemplo, `NaMe.EtH` se normaliza a `name.eth`. Esto asegura que se use el nodo de Registro correcto, sin importar cómo el usuario escriba el nombre.
+
+Los nombres ENS se validan y normalizan usando el algoritmo de normalización [ENSIP-15](/ensip/15).
+
+Anteriormente, se usaba [UTS-46](https://www.unicode.org/reports/tr46/), pero eso es insuficiente para secuencias de emoji. El procesamiento correcto de emoji solo es posible con [UTS-51](https://www.unicode.org/reports/tr51/). El algoritmo de normalización [ENSIP-15](/ensip/15) se basa en esos estándares Unicode más antiguos, pero también agrega muchas otras reglas de validación para prevenir técnicas comunes de suplantación como insertar caracteres de ancho cero, o usar caracteres confusos (que se parecen). Ver aquí para discusión adicional sobre esto: [Homogylphs](https://support.ens.domains/en/articles/7901658-homoglyphs)
+
+Una implementación estándar del algoritmo está disponible en [@adraffy/ens-normalize](https://github.com/adraffy/ens-normalize.js). Esta librería se usa internamente en [viem](https://viem.sh/docs/ens/utilities/normalize), [ENSjs](https://github.com/ensdomains/ensjs/blob/main/packages/ensjs/src/utils/normalise.ts#L27), y otros.
+
+```js
+import { normalize } from 'viem/ens'
+
+// Usa @adraffy/ens-normalize internamente
+
+const normalized = normalize('RaFFY🚴‍♂️.eTh')
+// => "raffy🚴‍♂.eth"
+```
+
+Si el nombre no pudo ser normalizado, entonces ese método lanzará un error. Un nombre es válido si puede ser normalizado.
+
+## Namehash
+
+:::note
+**DEBES** [normalizar](#normalize) un nombre antes de intentar crear un namehash! Si no lo haces, entonces el hash que obtengas podría ser incorrecto. Algunas librerías como [ensjs](https://github.com/ensdomains/ensjs) harán esto automáticamente por ti.
+:::
+
+En el registro central ENS, los nombres se almacenan como un hash en lugar del string crudo para optimizar gas, rendimiento, y más. Este valor hasheado típicamente se conoce como un `nodo`. El nodo es un valor de 32 bytes codificado en hex que se deriva del nombre usando el algoritmo `namehash` definido en [ENSIP-1](/ensip/1).
+
+Namehash es un algoritmo recursivo que hashea cada parte del nombre, luego hashea los resultados juntos. Como las funciones recursivas no son muy eficientes en Solidity, usualmente es mejor derivar el namehash fuera de cadena y pasarlo a un contrato. Afortunadamente, hay librerías que hacen esto por nosotros.
+
+:::code-group
+
+```tsx [Viem]
+// https://viem.sh/docs/ens/utilities/namehash
+import { namehash, normalize } from 'viem/ens'
+
+const normalizedName = normalize('name.eth')
+const node = namehash(normalizedName)
+```
+
+```ts [Ethers.js]
+// https://docs.ethers.org/v6/api/hashing/#namehash
+import { ensNormalize, namehash } from 'ethers/hash'
+
+const normalizedName = ensNormalize('name.eth')
+const node = namehash(normalizedName)
+```
+
+```python [ens-namehash-py]
+# https://github.com/ConsenSysMesh/ens-namehash-py
+from namehash import namehash
+
+node = namehash('name.eth')
+```
+
+```rust [namehash-rust]
+// https://github.com/InstateDev/namehash-rust
+fn main() {
+  let node = &namehash("name.eth");
+  let s = hex::encode(&node);
+}
+```
+
+```solidity [Solidity]
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "@ensdomains/ens-contracts/contracts/utils/NameEncoder.sol";
+
+contract MyContract {
+    function namehash(string calldata name) public pure returns (bytes32) {
+        (, bytes32 node) = NameEncoder.dnsEncodeName(name);
+        return node;
+    }
+}
+```
+
+:::
+
+### Algoritmo
+
+La especificación para el algoritmo namehash fue originalmente definida en [EIP-137](https://eips.ethereum.org/EIPS/eip-137#namehash-algorithm) (igual que [ENSIP-1](/ensip/1)).
+
+Es un algoritmo recursivo que funciona hacia abajo hasta que llegas al dominio raíz. Para `ens.eth`, el algoritmo funciona así:
+
+```
+namehash('ens.eth') = keccak256(namehash('eth') + labelhash('ens'))
+namehash('eth') = keccak256(namehash('') + labelhash('eth'))
+namehash('') = 0x0000000000000000000000000000000000000000000000000000000000000000
+```
+
+Esa última línea es un caso especial: El namehash para un string vacío (representando el dominio raíz) es 32 bytes nulos.
+
+Si conectas todo lo anterior, terminarás con el valor namehash final:
+
+```
+namehash('') = 0x0000000000000000000000000000000000000000000000000000000000000000
+
+labelhash('eth') = keccak256('eth') = 0x4f5b812789fc606be1b3b16908db13fc7a9adf7ca72641f84d75b47069d3d7f0
+
+namehash('eth') = keccak256(namehash('') + labelhash('eth')) = keccak256(0x00000000000000000000000000000000000000000000000000000000000000004f5b812789fc606be1b3b16908db13fc7a9adf7ca72641f84d75b47069d3d7f0) = 0x93cdeb708b7545dc668eb9280176169d1c33cfd8ed6f04690a0bcc88a93fc4ae
+
+labelhash('ens') = keccak256('ens') = 0x5cee339e13375638553bdf5a6e36ba80fb9f6a4f0783680884d92b558aa471da
+
+namehash('ens.eth') = keccak256(namehash('eth') + labelhash('ens')) = keccak256(0x93cdeb708b7545dc668eb9280176169d1c33cfd8ed6f04690a0bcc88a93fc4ae5cee339e13375638553bdf5a6e36ba80fb9f6a4f0783680884d92b558aa471da) = 0x4e34d3a81dc3a20f71bbdf2160492ddaa17ee7e5523757d47153379c13cb46df
+
+```
+
+Esto nos lleva al nodo final para ens.eth: `0x4e34d3a81dc3a20f71bbdf2160492ddaa17ee7e5523757d47153379c13cb46df`
+
+### Nodos Inversos
+
+El [Nodo Inverso](/es/terminology#reverse-node) es un nodo en el Registro que puede ser reclamado para cualquier cuenta Ethereum. El nombre que este nodo representa es `[addr].addr.reverse`, donde `[addr]` es la dirección pública de Ethereum (minúsculas, sin el "0x"). Estos nodos inversos típicamente se usan para establecer un [Nombre Primario](#primary-name) para una cuenta.
+
+Para generar el namehash para un nodo inverso:
+
+- Toma la dirección de entrada y:
+  - Remueve el "0x" al principio
+  - Convierte todos los caracteres a minúsculas
+- Agrega `.addr.reverse` al final
+- Ejecuta este resultado a través del algoritmo namehash
+
+Por ejemplo, para la dirección `0x481f50a5BdcCC0bc4322C4dca04301433dED50f0`, el nombre para el nodo inverso es:
+
+- `481f50a5bdccc0bc4322c4dca04301433ded50f0.addr.reverse`
+
+Y el namehash resultante para el nodo inverso es:
+
+- `0x58354ffdde6ac279f3a058aafbeeb14059bcb323a248fb338ee41f95fa544c86`
+
+## Labelhash
+
+:::note
+**DEBES** [normalizar](#normalize) un nombre antes de intentar crear un labelhash! Si no lo haces, entonces el hash que obtengas podría ser incorrecto.
+:::
+
+Labelhash es el hash Keccak-256 de una sola etiqueta (ej. `name` en `name.eth`), usado en lugares que no requieren el nombre completo.
+
+Un ejemplo de dónde se usa labelhash es en el [BaseRegistar](/es/registry/eth), ya que solo soporta registrar 2LDs (dominios de segundo nivel, como `name.eth`) y no 3LDs+ (ej. `sub.name.eth`). El ID del token de un nombre .eth de segundo nivel en el BaseRegistar es el uint256 del labelhash.
+
+:::code-group
+
+```tsx [Viem]
+// https://viem.sh/docs/ens/utilities/labelhash
+import { labelhash, normalize } from 'viem/ens'
+
+const normalizedLabel = normalize('label')
+const hash = labelhash(normalizedLabel)
+```
+
+```tsx [Ethers]
+// https://docs.ethers.org/v6/api/crypto/#keccak256
+import { keccak256 } from 'ethers/crypto'
+import { ensNormalize } from 'ethers/hash'
+import { toUtf8Bytes } from 'ethers/utils'
+
+const normalizedLabel = ensNormalize('label')
+const labelhash = keccak256(toUtf8Bytes(normalizedLabel))
+```
+
+```solidity [Solidity]
+string constant label = "label";
+bytes32 constant labelhash = keccak256(bytes(label));
+```
+
+:::
+
+## Codificación DNS
+
+:::note
+**DEBES** [normalizar](#normalize) un nombre antes de codificarlo DNS! Si no lo haces, entonces cuando pases esos bytes codificados DNS a un método de contrato, se pueden derivar namehashes/labelhashes incorrectos.
+:::
+
+Este es un formato binario para nombres de dominio, que codifica la longitud de cada etiqueta junto con la etiqueta misma. Es usado por algunos de los contratos ENS, como cuando se envuelven nombres en el [Name Wrapper](/es/wrapper/overview) o se resuelven datos con [ENSIP-10](/ensip/10).
+
+:::code-group
+
+```tsx [Viem]
+import { packetToBytes } from 'viem/ens'
+import { toHex } from 'viem/utils'
+
+const name = 'name.eth'
+const dnsEncodedName = toHex(packetToBytes(name))
+// 0x046e616d650365746800
+```
+
+```tsx [Ethers]
+// https://docs.ethers.org/v6/api/hashing/#dnsEncode
+import { dnsEncode } from 'ethers/lib/utils'
+
+const dnsEncodedName = dnsEncode('name.eth')
+```
+
+```solidity [Solidity]
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "@ensdomains/ens-contracts/contracts/utils/NameEncoder.sol";
+
+contract MyContract {
+    function dnsEncode(string calldata name) public pure returns (bytes memory) {
+        (bytes memory dnsEncodedName,) = NameEncoder.dnsEncodeName(name);
+        return dnsEncodedName;
+    }
+}
+```
+
+:::
+
+### Decodificación
+
+Para decodificar un nombre codificado DNS, puedes usar `bytesToPacket()` de ENSjs.
+
+```tsx
+import { bytesToPacket } from '@ensdomains/ensjs/utils'
+import { hexToBytes } from 'viem/utils'
+
+const dnsEncodedName = '0x046e616d650365746800'
+const name = bytesToPacket(hexToBytes(dnsEncodedName))
+// name.eth
+```
+
+### Algoritmo
+
+Para codificar DNS un nombre, primero divide el nombre en etiquetas (delimitadas por `.`). Luego para cada etiqueta de izquierda a derecha:
+
+- Un byte para denotar la longitud de la etiqueta
+- Los bytes codificados UTF-8 para la etiqueta
+- Si esta es la última etiqueta, entonces un byte NUL final (`0x00`).
+
+Por ejemplo, para codificar DNS `my.name.eth`:
+
+- `0x02` (longitud de la etiqueta "my")
+- `0x6D79` (bytes codificados UTF-8 de "my")
+- `0x04` (longitud de la etiqueta "name")
+- `0x6E616D65` (bytes codificados UTF-8 de "name")
+- `0x03` (longitud de la etiqueta "eth")
+- `0x657468` (bytes codificados UTF-8 de "eth")
+- `0x00` (marcador de fin de nombre)
+
+Resultado final: `0x026d79046e616d650365746800`
+
+:::note
+Como la longitud de cada etiqueta se almacena en un solo byte, eso significa que con este esquema de codificación DNS, cada etiqueta está limitada a ser 255 bytes codificados UTF-8 en longitud. Debido a esto, los nombres con etiquetas más largas no pueden ser envueltos en el [Name Wrapper](/es/wrapper/overview), ya que ese contrato usa el nombre codificado DNS.
+:::
