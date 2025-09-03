@@ -1,0 +1,125 @@
+# Crear un Registrador de Subnombres
+
+En la sección [Casos de Uso](/es/wrapper/usecases#sell-or-rent-subnames), hablamos sobre la capacidad de establecer tu propio "registrador" para permitir que otras personas registren/reclamen subnombres automáticamente. Tal vez quieras dar subnombres envueltos gratis, o tal vez quieras cobrar por ellos. Tal vez quieras aplicar reglas específicas a los subnombres, como solo permitir nombres alfanuméricos. Todo esto es posible, y este artículo desglosará lo que necesitas hacer.
+
+Se recomienda leer primero la sección [Casos de Uso](/es/wrapper/usecases#sell-or-rent-subnames) para obtener una visión general de las decisiones que necesitarás tomar.
+
+## Prerrequisitos
+
+Esta guía asume que tu nombre padre (como `myname.eth`) ya está envuelto. Si no estás seguro de si tu nombre está envuelto, mira la pestaña "Más" en la aplicación Manager. Si el nombre no está envuelto, lo dirá, y te mostrará un botón "Wrap Name".
+
+Si quieres emitir subnombres [Emancipados](/es/wrapper/states#emancipated), o subnombres con [cualquier otro fusible](/es/wrapper/fuses) quemado, entonces tu nombre padre debe estar primero [Bloqueado](/es/wrapper/states#locked). Puedes hacer esto en la pestaña Permisos en la aplicación ENS manager.
+
+:::note
+Con ENSv2 en el horizonte, recomendamos esperar antes de bloquear tu nombre; los nombres bloqueados en el Name Wrapper solo serán migrables a L1, así que si quieres poder emitir subnombres sin confianza en Namechain tu mejor opción es esperar hasta que Namechain esté en vivo.
+:::
+
+:::warning
+Bloquear tu nombre (en otras palabras revocar el permiso para desenrollar) es un cambio **irreversible**. Después de que bloquees el nombre, ya no podrás desenrollarlo. Esta es una garantía de seguridad para los titulares de todos los subnombres. Asegura que el propietario del nombre padre no puede evitar las garantías de seguridad del Name Wrapper.
+
+Es mejor hacer esto primero en un nombre de testnet (Sepolia/Holesky), para propósitos de desarrollo o prueba.
+:::
+
+## Crear y Desplegar tu Contrato Registrador
+
+Para crear un nuevo subnombre, tu contrato debería llamar a `setSubnodeOwner` o `setSubnodeRecord` en el [contrato NameWrapper](/es/learn/deployments#deployments). También pasa los fusibles y vencimiento al mismo tiempo, según sea necesario.
+
+```solidity
+NameWrapper.setSubnodeOwner(bytes32 parentNode, string label, address owner, uint32 fuses, uint64 expiry)
+
+// Por ejemplo
+setSubnodeOwner(
+    0x6cbc..., // El namehash del nodo padre, ej. "myname.eth"
+    "sub", // La etiqueta del subnombre a crear
+    0x1234..., // La dirección que quieres que sea el propietario del nuevo subnombre
+    65536, // Los bits de fusible OR'd juntos, que quieres quemar
+    2021232060 // El vencimiento para el subnombre
+)
+
+NameWrapper.setSubnodeRecord(bytes32 parentNode, string label, address owner, address resolver, uint64 ttl, uint32 fuses, uint64 expiry)
+
+// Por ejemplo
+setSubnodeRecord(
+    0x6cbc..., // El namehash del nodo padre, ej. "myname.eth"
+    "sub", // La etiqueta del subnombre a crear
+    0x1234..., // La dirección que quieres que sea el propietario del nuevo subnombre
+    0x5678..., // La dirección del resolver a establecer para el nuevo subnombre
+    0, // El TTL a establecer para el nuevo subnombre
+    65536, // Los bits de fusible OR'd juntos, que quieres quemar
+    2021232060 // El vencimiento para el subnombre
+)
+```
+
+Tu función de registro pública típicamente tomaría _al menos_ el nodo padre (namehash) y la etiqueta del subnombre como entradas, como:
+
+```solidity
+register(bytes32 parentNode, string calldata label)
+```
+
+Luego bajo el capó, tu contrato llamará a `setSubnodeRecord` y llenará el resto de los parámetros en nombre del usuario:
+
+- owner: Típicamente la cuenta del llamador, `msg.sender`
+- resolver: Típicamente el resolver público por defecto, `resolver.eth`
+- ttl: 0
+- fuses: Depende de ti y tus objetivos. Ver la sección [Casos de Uso](/es/wrapper/usecases#sell-or-rent-subnames) para una discusión sobre esto. Típicamente 65536 para un subnombre de alquiler emancipado, o 327680 para un nombre emancipado "para siempre".
+- expiry: Depende de ti y tus objetivos. Si estás alquilando subnombres por un período particular de tiempo, este vencimiento reflejaría eso. Si estás permitiendo el registro de nombres "para siempre", entonces puedes simplemente establecer el vencimiento igual al vencimiento actual del nombre padre.
+
+Por supuesto, si quieres dar al registrante más poder/conveniencia, podrías permitir que algunos de esos parámetros también se pasen a tu función de registro pública.
+
+### Establecer Registros de Resolver
+
+Si quieres que tu registrador de subnombres establezca registros en un subnombre en la misma transacción de registro, entonces el flujo será ligeramente diferente. En ese caso, realiza estos pasos:
+
+- Llama a `setSubnodeOwner`, estableciendo el _contrato mismo_ (`address(this)`) como el propietario del subnombre, temporalmente. Este primer paso es necesario para el Resolver Público por defecto para que el contrato tenga la autoridad de establecer registros para el subnombre.
+- Llama a cualquier [método de resolver](/es/resolvers/interacting) que necesites. Tal vez estos son registros que quieres que estén preestablecidos en tus subnombres (como una dirección ETH a la que apunta el subnombre). O tal vez estos son registros que permites que el registrante pase, para que puedan registrar su subnombre y establecer cualquier registro que quieran en una sola transacción.
+- Llama a `setSubnodeRecord`, pero esta vez establece el propietario al propietario real previsto del subnombre. Este es el punto en el que también deberías establecer los fusibles y vencimiento apropiados que quieras.
+
+Además, necesitarás asegurarte de que tu contrato siga las [reglas del Receptor de Token ERC-1155](https://eips.ethereum.org/EIPS/eip-1155#erc-1155-token-receiver). Esto significa implementar los métodos `onERC1155Received` y `onERC1155BatchReceived`, y señalar soporte para ellos en tu método ERC-165 `supportsInterface`. OpenZeppelin tiene un contrato abstracto fácil que puedes incluir para todo esto: [ERC1155Holder.sol](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC1155/utils/ERC1155Holder.sol)
+
+### Cobrar tarifas
+
+Si estás configurando un registrador de "alquiler", entonces tu función de registro debería requerir que se envíe una cierta cantidad de ETH también.
+
+Alternativamente, podrías elegir permitir que los usuarios gasten tokens ERC-20 en su lugar. Para lograr eso, típicamente llamarías al método ERC-20 `transferFrom` en el contrato de token. Esto también significa que el registrante primero necesitaría aprobar tu contrato como un gastador para ese token, lo que significa que necesitarían ejecutar una transacción de aprobación separada primero (ya sea para aprobar gasto ilimitado, o para aprobar el número específico de tokens necesarios para registrar el subnombre).
+
+### Implementación de Referencia
+
+¡Afortunadamente, no necesitas empezar desde cero! Los desarrolladores de ENS Labs han creado algunos contratos de ejemplo desde los que puedes empezar:
+
+https://github.com/ensdomains/ens-contracts/tree/feature/subdomain-registrar/contracts/subdomainregistrar
+
+Estos contratos incluyen dos implementaciones diferentes:
+
+#### Registrador de Subnombres Para Siempre
+
+Este es un registrador FIFS básico (Primero en llegar, primero en ser servido). El registro puede tomar una tarifa fija, o esta tarifa puede establecerse a 0 si deseas que los subnombres sean gratis. Los nombres automáticamente se establecen al vencimiento del padre y el fusible para `CAN_EXTEND_EXPIRY` se quemará en el registro para que el usuario pueda extender su vencimiento si el padre también extiende el suyo. Para una mejor UX, se recomienda que el padre establezca su expiración lo más alta posible para permitir que sus usuarios no tengan que pensar en renovar.
+
+#### Registrador de Subnombres de Alquiler
+
+Este es un registrador FIFS básico (Primero en llegar, primero en ser servido). La diferencia clave entre este y el ForeverSubdomainRegistrar es que no auto-quema el fusible `CAN_EXTEND_EXPIRY` y en su lugar expone una función `renew()` que permite renovación pagada. Este registrador también necesita ser emparejado con un contrato de precios basado en alquiler. Para simplicidad, el desplegador puede desplegar este contrato de precios y la UI puede pasar esta dirección a través de `setupDomain()` cuando un nuevo usuario quiere configurar un subnombre.
+
+## Configurar Todo
+
+Una vez que tienes un nombre padre listo y un contrato registrador de subnombres desplegado, entonces solo necesitas algunos pasos extra para configurar todo:
+
+### (Si es necesario) Llama a setupDomain en tu contrato
+
+Esto solo se aplicará a ti si tienes un método `setupDomain` específico o algo similar en tu contrato, como lo hacen los contratos de [implementación de referencia](/es/wrapper/creating-subname-registrar#reference-implementation).
+
+Llamar a este método "habilitará" un nombre padre específico en tu registrador de subnombres. También puede permitirte establecer o actualizar los términos de precios o cuenta beneficiaria, si es necesario.
+
+### Aprobar tu contrato
+
+Llama a `setApprovalForAll` en el contrato NameWrapper, aprobando tu contrato registrador de subnombres como un operador para cualquier nombre que poseas. Esto te permite mantener la propiedad del nombre padre, y simplemente delegar la creación de subnombres a tu contrato.
+
+### (Si es necesario) Aprobar gasto de token
+
+Si tu contrato registrador toma tokens ERC-20 como tarifa de registro, entonces un registrante potencial necesitará aprobar tu contrato como un gastador primero.
+
+### Registrar un subnombre
+
+Finalmente, el registrante llamará a tu método de registro público. Al éxito de la transacción, poseerán el nombre envuelto (NFT ERC-1155) con cualquier garantía de fusible/vencimiento que configuraste en tu registrador.
+
+Si estás permitiendo que se registren subnombres "para siempre" (lo que significa que has quemado el fusible `CAN_EXTEND_EXPIRY` en los subnombres), entonces el registrante puede extender su propio vencimiento en cualquier momento. Ten en cuenta que el vencimiento de un subnombre puede establecerse hasta un máximo de lo que sea el vencimiento del nombre padre.
+
+¡Y eso es todo!

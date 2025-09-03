@@ -1,0 +1,55 @@
+---
+description: Usando CCIP Read para llevar la resolución ENS cross-chain, fuera de cadena, y más.
+---
+
+# Resolución de Capa 2 y Fuera de Cadena
+
+Toda la resolución ENS comienza en Ethereum Mainnet (o testnet).
+Sin embargo, aprovechando [CCIP Read](/es/resolvers/ccip-read) y [Resolución Comodín](/ensip/10), la resolución de nombres puede llevarse cross-chain, fuera de cadena, y más.
+Esto permite mucha flexibilidad en cómo puedes usar tu ENS y para el almacenamiento de tus registros ENS en tu Capa 2 favorita, o incluso fuera de cadena.
+
+## ENS en Capa 2
+
+En el proceso de resolución, los clientes primero obtienen el resolver asociado con el nombre en el registro ENS en L1. Ese resolver es responsable de decirle al cliente dónde encontrar los datos asociados con el nombre como las direcciones, registros de texto, etc.
+
+Si quieres registrar y resolver (sub)nombres desde L2, escribirías un contrato inteligente resolver que difiere la resolución a L2 e idealmente verifica esos datos contra las pruebas de almacenamiento de L2 publicadas en L1. Este proceso se puede hacer con la [Unruggable Gateway](https://gateway-docs.unruggable.com/).
+
+Un ejemplo de implementación de resolución de Capa 2 es:
+
+### linea.eth
+
+Linea fue el primer equipo L2 en construir un sistema de subnombres ENS con confianza minimizada. Los nombres se almacenan en Linea, verificados con [pruebas de almacenamiento](https://docs.linea.build/developers/tooling/cross-chain/ccip-read-gateway) en L1, y funcionan como subnombres ENS como [greg.linea.eth](https://app.ens.domains/greg.linea.eth). Puedes probarlo [aquí](https://names.linea.build/).
+
+### clv.eth
+
+Clave se enfoca en mejorar la experiencia del usuario y la seguridad a través de una billetera móvil que aprovecha la abstracción de cuentas y el hardware del dispositivo. Las cuentas de Clave vienen con nombres de usuario que ahora se almacenan en cadena en ZKsync Era, verificados con [pruebas de almacenamiento](https://github.com/getclave/zksync-storage-proofs) en L1, y emitidos como subnombres ENS como [ulas.clv.eth](https://enstate.rs/n/ulas.clv.eth). Puedes leer más sobre la implementación [aquí](https://blog.getclave.io/introducing-onchain-clave-usernames-with-ens).
+
+## Nombres Primarios en Capa 2
+
+El proceso de establecer nombres primarios desde L2 está bajo desarrollo activo. Este documento se actualizará a medida que más información esté disponible.
+
+## Resolución Fuera de Cadena
+
+Mover los procesos de resolución fuera de cadena ofrece numerosas ventajas, incluyendo ganancias de eficiencia y reducción de congestión en la blockchain principal; sin embargo, también introduce compensaciones en términos de confianza, ya que requiere dependencia de sistemas externos.
+Dependiendo de la implementación, los nombres podrían almacenarse en una base de datos o ser efímeros.
+Las ventajas del almacenamiento de nombres fuera de cadena incluyen sin gas y actualizaciones instantáneas.
+Si esto suena atractivo considera [escribir un Resolver Fuera de Cadena](/es/resolvers/ccip-read).
+
+Las implementaciones populares de nombres fuera de cadena incluyen pero no se limitan a:
+
+### cb.id
+
+Coinbase Wallet es una de las billeteras móviles más grandes que emite subnombres ENS gratuitos a sus usuarios.
+Estos nombres se almacenan fuera de cadena en servidores de coinbase, y pueden registrarse desde la Aplicación Coinbase Wallet o Extensión del Navegador.
+Un ejemplo de un cb.id es [lucemans.cb.id](https://enstate.rs/n/lucemans.cb.id).
+
+### uni.eth
+
+Uniswap Wallet es otra billetera móvil popular que emite subnombres ENS gratuitos a sus usuarios.
+Puedes leer más sobre la integración ENS de Uniswap Wallet [aquí](https://blog.uniswap.org/introducing-uni-eth-your-unique-web3-username).
+Un ejemplo de un uni.eth es [lucemans.uni.eth](https://enstate.rs/n/lucemans.uni.eth).
+
+### lens.xyz
+
+El Ecosistema Lens también es fácilmente accesible a través de la puerta de enlace `lens.xyz` mantenida oficialmente.
+Esto significa que puedes buscar tu nombre de lens favorito como [lucemans.lens.xyz](https://enstate.rs/n/lucemans.lens.xyz) y recuperar la información sin problemas.
