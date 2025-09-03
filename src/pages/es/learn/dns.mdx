@@ -1,0 +1,45 @@
+---
+title: DNS en ENS [ENS soporta nombres DNS, permitiendo a los usuarios importar nombres DNS a ENS.]
+description: El Ethereum Name Service es mucho más que solo nombres `.eth`. Es un sistema de nombres de propósito general que puede usarse para cualquier tipo de nombre. Esto incluye nombres DNS.
+---
+
+import { DNSGrid } from '../../../components/DNSGrid'
+import { DNSUsageExamples } from '../../../components/DNSUsageExamples'
+import { EmbedLink } from '../../../components/EmbedLink'
+
+# DNS en ENS [ENS soporta nombres DNS, permitiendo a los usuarios importar nombres DNS a ENS.]
+
+El Ethereum Name Service es mucho más que solo nombres `.eth`. Es un sistema de nombres de propósito general que puede usarse para cualquier tipo de nombre. Esto incluye nombres DNS.
+La funcionalidad DNS fue introducida originalmente en [ENSIP-6](/ensip/6).
+
+## Importar un nombre DNS
+
+Actualmente hay dos formas de importar un nombre DNS a ENS. Ambos métodos requieren que habilites DNSSEC en tu dominio, y configures un registro TXT.
+Este registro es entonces verificado usando contratos inteligentes en la blockchain de Ethereum.
+
+Para importar un nombre, simplemente visita el [ENS Manager](https://ens.app), escribe tu nombre, y haz clic en "Import DNS". Te guiarán a través de la configuración de tus registros DNS.
+Adicionalmente puedes leer más sobre los registros y especificaciones aquí:
+
+<EmbedLink
+  title="Importar un nombre DNS sin gas"
+  href="/registry/dns#gasless-import"
+/>
+
+## ¿Por qué DNS en ENS?
+
+ENS tiene como objetivo extender la funcionalidad existente del sistema DNS. Esto también significa que los nombres DNS existentes (como `.com`, `.org`, o `.xyz`) deberían poder aprovechar los beneficios del proceso de resolución ENS.
+
+<DNSGrid />
+
+## Nombres DNS en el mundo real
+
+Los nombres DNS son ampliamente usados y muchos usuarios pueden ya tener uno sin siquiera darse cuenta. Algunas plataformas principales que emiten subdominios de sus nombres DNS incluyen:
+
+<DNSUsageExamples />
+
+## Dominios de Primer Nivel
+
+Además de permitir que cualquier nombre habilitado con DNSSEC sea importado, ENS también permite que los TLDs DNS existentes tomen control de su proceso de resolución de contratos inteligentes.
+Resultando en una integración aún más fluida con el sistema DNS.
+
+Una lista de todos los TLDs soportados puede encontrarse [aquí](/dns/tlds)

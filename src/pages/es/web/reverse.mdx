@@ -1,0 +1,194 @@
+---
+title: Nombres Primarios
+description: Para buscar el nombre de una dirección usamos una resolución inversa. Esto permite a los usuarios indicar un nombre primario.
+---
+
+import { EmbedLink } from '../../../components/EmbedLink'
+import { EnsProfile } from '../../../components/EnsProfile'
+import { QandA } from '../../../components/QandA'
+import { Badge } from '../../../components/ui/Badge'
+import { Card } from '../../../components/ui/Card'
+
+# Nombres Primarios
+
+:::info
+Los nombres primarios ahora están soportados tanto en Ethereum Mainnet como en L2s populares (Base, OP Mainnet, Arbitrum One, Scroll, y Linea). ¡Esto permite a los usuarios tener una experiencia de extremo a extremo con ENS en su L2 preferido!
+:::
+
+Un "nombre primario" es el resultado de una relación bidireccional entre una dirección EVM y un nombre ENS legible por humanos. Las dos direcciones son:
+
+1. Nombre -> Dirección (resolución hacia adelante)
+2. Dirección -> Nombre (resolución inversa)
+
+El resultado de esta relación hace que sea seguro para las aplicaciones mostrar nombres ENS en lugar de direcciones EVM, llevando a una mejor experiencia de usuario.
+
+<Card className="flex items-center justify-center gap-2">
+  <span className="font-medium">0xb8c...67d5</span>
+  <span>a</span>
+  <EnsProfile name="nick.eth" hideAddress />
+</Card>
+
+Mientras que la resolución hacia adelante se configura en [Resolvers](/resolvers/quickstart), los registros inversos típicamente se establecen a través de contratos inteligentes llamados Reverse Registrars de los que puedes [leer más abajo](#setting-primary-names).
+
+## Nombres Primarios L2
+
+Antes de sumergirnos en ejemplos de código, primero entendamos por qué las cosas funcionan como lo hacen.
+
+Antes de agosto de 2025, los usuarios de ENS tenían que hacer una transacción en Ethereum Mainnet (L1) para establecer un nombre primario. Más específicamente, tenían que establecer un registro inverso en el contrato [Reverse Registrar](/registry/reverse) que solo estaba disponible en L1.
+
+<QandA
+  open
+  question="¿Cuál es la diferencia entre un registro inverso y un nombre primario?"
+  answer="Un registro inverso es un mapeo de una dirección EVM a un nombre ENS, que es solo parte de un nombre primario. Para que un nombre primario sea válido, el nombre también debe resolver hacia adelante a la misma dirección en la cadena respectiva."
+/>
+
+Dado que la mayoría de la actividad del usuario ahora está en L2s, hemos agregado la capacidad de establecer un registro inverso en los siguientes Ethereum Rollups:
+
+- Arbitrum
+- Base
+- Linea
+- OP Mainnet
+- Scroll
+
+Además de estas cadenas, también hemos agregado la capacidad de establecer un registro inverso por defecto en Ethereum Mainnet (L1) que sirve como respaldo cuando no se establece un nombre primario específico de cadena. Esta es la forma más simple de establecer un nombre primario universal para usuarios que tienen un wallet que soporta todas las cadenas EVM.
+
+Aunque esto puede sonar simple en teoría, es fácil tropezarse con los detalles en la práctica. Veamos un ejemplo.
+
+### Entender el Proceso de Verificación
+
+Lo clave a entender es que la dirección hacia adelante _para una cadena dada_ debe coincidir con el registro inverso en el reverse registrar de la cadena respectiva.
+
+Digamos que poseo `nick.eth`. El nombre resuelve a `0x1234...5678` porque he establecido la dirección ETH para ese nombre. Llamo a `setName("nick.eth")` en el reverse registrar de Base, y espero que mi nombre primario ahora sea `nick.eth` en Base. Pero ese no es realmente el caso.
+
+Los nombres ENS pueden resolver a [diferentes direcciones en diferentes cadenas](/es/web/resolution), y dado que `nick.eth` en el ejemplo anterior solo ha especificado una dirección de Ethereum Mainnet, el proceso de verificación fallará. Para arreglar esto, necesito establecer la dirección de Base para `nick.eth` que está en L1 en este caso. Esto se hace llamando a la siguiente función en el resolver para el nombre.
+
+```solidity
+setAddr(
+  namehash("nick.eth"), // node (ver Procesamiento de Nombres)
+  convertEVMChainIdToCoinType(8453), // coinType (ver ENSIP-11)
+  0x1234...5678 // la dirección a establecer
+)
+```
+
+Ahora que `nick.eth` resuelve a `0x1234...5678` vía el cointype de Base, y `name(0x1234...5678)` en el reverse registrar de Base devuelve `nick.eth`, mi nombre primario está completamente establecido.
+
+Un enfoque alternativo, que sería más eficiente en este caso, es establecer la dirección EVM por defecto para `nick.eth` en el [resolver público](/resolvers/public) más reciente, y el registro inverso por defecto a `nick.eth` en el reverse registrar por defecto. Esto permitiría que el nombre resuelva a la dirección correcta en todas las cadenas.
+
+## Obtener un Nombre Primario
+
+:::info
+**Importante**: Después de recuperar un nombre de la resolución inversa, **debes** verificarlo realizando una resolución hacia adelante en ese nombre para confirmar que aún resuelve a la dirección original. Esto previene el spoofing o mala configuración. Si las direcciones no coinciden, muestra la dirección original en lugar del nombre.
+:::
+
+Buscar el nombre primario de un usuario es muy simple. En la mayoría de librerías web3 (wagmi, viem, ethers, web3py, etc.), encontrarás una función incorporada para hacer una búsqueda por dirección como se muestra abajo. En la mayoría de casos, la librería manejará la verificación por ti.
+
+:::warning
+A partir del 12 de agosto de 2025, ninguna librería ha sido actualizada para soportar Nombres Primarios L2. Consulta [esta implementación de referencia temporal](https://github.com/ensdomains/frontend-template/blob/main/src/hooks/useEnsName.tsx).
+:::
+
+Recuerda que en todos los casos, la resolución ENS siempre comienza desde Ethereum Mainnet.
+
+:::code-group
+
+```tsx [Wagmi]
+// https://wagmi.sh/react/hooks/useEnsName
+import { useEnsName } from 'wagmi'
+import { mainnet } from 'wagmi/chains'
+
+export const Name = () => {
+  const { data: name } = useEnsName({
+    address: '0xb8c2C29ee19D8307cb7255e1Cd9CbDE883A267d5',
+    chainId: mainnet.id, // la resolución siempre comienza desde L1
+  })
+
+  return <div>Nombre: {name}</div>
+}
+```
+
+```ts [Ethers v5]
+const address = '0xb8c2C29ee19D8307cb7255e1Cd9CbDE883A267d5';
+const name = await provider.lookupAddress(address);
+
+// Siempre verificar la resolución hacia adelante
+if (name) {
+    const resolvedAddress = await provider.resolveName(name);
+    if (resolvedAddress !== address) {
+        // Si la verificación falla, usar la dirección original
+        return address;
+    }
+}
+```
+
+```ts [Viem]
+// https://viem.sh/docs/ens/actions/getEnsName.html
+import { publicClient } from './client'
+
+const ensName = await publicClient.getEnsName({
+  address: '0xb8c2C29ee19D8307cb7255e1Cd9CbDE883A267d5',
+})
+```
+
+```py [Web3.py]
+# https://web3py.readthedocs.io/en/latest/ens_overview.html#get-the-ens-name-for-an-address
+from ens.auto import ns
+
+name = ns.name('0xb8c2C29ee19D8307cb7255e1Cd9CbDE883A267d5')
+```
+
+```go [Go]
+package main
+
+import (
+	"fmt"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethclient"
+	ens "github.com/wealdtech/go-ens/v3"
+)
+
+func main() {
+	client, _ := ethclient.Dial("https://rpc.ankr.com/eth")
+
+	name, _ := ens.ReverseResolve(client, common.HexToAddress("0xb8c2C29ee19D8307cb7255e1Cd9CbDE883A267d5"))
+	fmt.Println("Nombre:", name)
+	// Nombre: nick.eth
+}
+```
+
+:::
+
+🎉 ¡Y eso es todo! Ahora puedes convertir todas tus páginas de esto, a esto:
+
+<Card className="flex flex-col items-center gap-2">
+  <div className="flex items-center gap-2">
+    <Badge>0xb8c2...67d5</Badge>
+    <span>envió 0.1 ETH a</span>
+    <Badge>0xd8dA....6045</Badge>
+  </div>
+  <span className="text-grey text-sm">se convierte en</span>
+  <div className="flex items-center gap-2">
+    <Badge>nick.eth</Badge>
+    <span>envió 0.1 ETH a</span>
+    <Badge>vitalik.eth</Badge>
+  </div>
+</Card>
+
+:::info
+Si eres un desarrollador de librerías buscando implementar esta funcionalidad, recomendamos usar el [Universal Resolver](/resolvers/universal). Es un contrato de utilidad que simplifica enormemente el proceso de resolver un nombre.
+:::
+
+## Establecer Nombres Primarios
+
+Dado que los nombres primarios requieren resolución bidireccional, técnicamente hay dos pasos para configurarlo. Digamos que el usuario `0x1234...5678` quiere establecer su nombre primario en Base a `nick.eth`.
+
+Primero, el usuario necesitaría establecer la dirección de Base para `nick.eth` a `0x1234...5678`. [Lee más sobre direcciones multichain](/es/web/resolution#multi-chain-addresses-btc-ltc-etc) para entender cómo funciona esto.
+
+Luego, el usuario necesitaría establecer el registro inverso para `0x1234...5678` a `nick.eth` en el Reverse Registrar de Base. [Lee más sobre registros inversos](/registry/reverse) para entender cómo funciona esto.
+
+Para evitar hacer esto manualmente para múltiples cadenas, el usuario puede establecer su registro inverso por defecto a `nick.eth` en el reverse registrar por defecto, y su dirección EVM por defecto a `0x1234...5678` en el [resolver público](/resolvers/public) más reciente.
+
+<EmbedLink
+  href="/registry/reverse"
+  title="Reverse Registrars"
+  description="Aprende más sobre los contratos inteligentes que manejan registros inversos en L1 y L2s."
+/>
