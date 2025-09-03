@@ -1,0 +1,122 @@
+---
+title: Resolviendo un Nombre
+description: Explicación técnica de cómo funciona la resolución de nombres ENS y los tipos de registros soportados.
+---
+
+# Resolviendo un Nombre
+
+## Original (English)
+
+# Resolving a Name
+
+ENS name resolution is the process of converting a human-readable ENS name (like `alice.eth`) into the machine-readable data it points to (like an Ethereum address).
+
+## How Resolution Works
+
+### Step 1: Namehash
+ENS names are converted to a 256-bit hash called a "namehash" for efficient storage and lookup. For example:
+- `alice.eth` → `0x787192fc5378cc92aa710a56a2b90b3b91a7b1886cac72c983e4ae999d033f8`
+
+### Step 2: Registry Lookup
+The ENS Registry contract stores the namehash and returns:
+- The owner of the name
+- The resolver contract address
+- The time-to-live (TTL)
+
+### Step 3: Resolver Lookup
+The resolver contract is queried with the namehash to get the actual data:
+- Ethereum address
+- Other cryptocurrency addresses
+- Content hash
+- Text records
+
+## Resolution Process
+
+```
+User Input: alice.eth
+    ↓
+Namehash: 0x787192fc5378cc92aa710a56a2b90b3b91a7b1886cac72c983e4ae999d033f8
+    ↓
+Registry: Returns owner, resolver, TTL
+    ↓
+Resolver: Returns actual data (address, content, etc.)
+```
+
+## Supported Record Types
+
+### Address Records
+- **ETH**: Ethereum address (0x...)
+- **BTC**: Bitcoin address
+- **LTC**: Litecoin address
+- **DOGE**: Dogecoin address
+- And many more
+
+### Content Records
+- **Content Hash**: IPFS hash, Swarm hash, or HTTP URL
+- **Text Records**: Email, URL, avatar, description, etc.
+
+## Reverse Resolution
+
+Reverse resolution allows you to find the ENS name associated with an Ethereum address:
+- Input: `0x1234...`
+- Output: `alice.eth`
+
+This is useful for displaying human-readable names in applications.
+
+## Traducción (Español)
+
+# Resolviendo un Nombre
+
+La resolución de nombres ENS es el proceso de convertir un nombre ENS legible por humanos (como `alice.eth`) en los datos legibles por máquinas a los que apunta (como una dirección de Ethereum).
+
+## Cómo Funciona la Resolución
+
+### Paso 1: Namehash
+Los nombres ENS se convierten en un hash de 256 bits llamado "namehash" para un almacenamiento y búsqueda eficientes. Por ejemplo:
+- `alice.eth` → `0x787192fc5378cc92aa710a56a2b90b3b91a7b1886cac72c983e4ae999d033f8`
+
+### Paso 2: Búsqueda en el Registro
+El contrato del Registro ENS almacena el namehash y devuelve:
+- El propietario del nombre
+- La dirección del contrato resolver
+- El tiempo de vida (TTL)
+
+### Paso 3: Búsqueda en el Resolver
+Se consulta el contrato resolver con el namehash para obtener los datos reales:
+- Dirección de Ethereum
+- Otras direcciones de criptomonedas
+- Hash de contenido
+- Registros de texto
+
+## Proceso de Resolución
+
+```
+Entrada del Usuario: alice.eth
+    ↓
+Namehash: 0x787192fc5378cc92aa710a56a2b90b3b91a7b1886cac72c983e4ae999d033f8
+    ↓
+Registro: Devuelve propietario, resolver, TTL
+    ↓
+Resolver: Devuelve datos reales (dirección, contenido, etc.)
+```
+
+## Tipos de Registros Soportados
+
+### Registros de Dirección
+- **ETH**: Dirección de Ethereum (0x...)
+- **BTC**: Dirección de Bitcoin
+- **LTC**: Dirección de Litecoin
+- **DOGE**: Dirección de Dogecoin
+- Y muchas más
+
+### Registros de Contenido
+- **Hash de Contenido**: Hash de IPFS, hash de Swarm, o URL HTTP
+- **Registros de Texto**: Email, URL, avatar, descripción, etc.
+
+## Resolución Inversa
+
+La resolución inversa te permite encontrar el nombre ENS asociado con una dirección de Ethereum:
+- Entrada: `0x1234...`
+- Salida: `alice.eth`
+
+Esto es útil para mostrar nombres legibles por humanos en aplicaciones.
