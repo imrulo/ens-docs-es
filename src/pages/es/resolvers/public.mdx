@@ -1,0 +1,41 @@
+---
+description: Un resolver de propósito general que satisface la mayoría de las necesidades de los usuarios.
+---
+
+# Resolver Público
+
+:::info
+Encuentra la dirección del último resolver público en la [página de despliegues](/es/learn/deployments).
+:::
+
+El resolver público es un resolver ENS de propósito general que es adecuado para la mayoría de las necesidades de los usuarios.
+Permite al propietario de un nombre actualizar sus registros, incluye permisos, y almacena sus datos en la capa-1 de Ethereum.
+
+La mayoría de los nombres ENS registrados a través del ENS Manager usarán la última versión del resolver público por defecto.
+Los nombres que resuelven a un resolver público soportado son editables desde dentro del ENS Manager.
+
+Si quieres echar un vistazo bajo el capó puedes ver el [código fuente del resolver público](https://github.com/ensdomains/ens-contracts/blob/staging/contracts/resolvers/PublicResolver.sol) en GitHub.
+
+## Características
+
+El resolver público soporta las siguientes características:
+
+- [EIP-137](https://eips.ethereum.org/EIPS/eip-137) - Interfaz de dirección de contrato (`addr()`)
+- [EIP-165](https://eips.ethereum.org/EIPS/eip-165) - Detección de interfaz (`supportsInterface()`)
+- [EIP-181](https://eips.ethereum.org/EIPS/eip-181) - Resolución inversa (`name()`)
+- [EIP-205](https://eips.ethereum.org/EIPS/eip-205) - Resolución ABI para contratos (`ABI()`)
+- [EIP-619](https://eips.ethereum.org/EIPS/eip-619) - Claves públicas SECP256k1 (`pubkey()`)
+- [EIP-634](https://eips.ethereum.org/EIPS/eip-634) - Registros de texto (`text()`)
+- [EIP-1577](https://eips.ethereum.org/EIPS/eip-1577) - Resolución de hash de contenido (`contenthash()`)
+- [EIP-2304](https://eips.ethereum.org/EIPS/eip-2304) - Soporte multicoin (`addr()`)
+- [ENSIP-19](/ensip/19#default-address) - Resolución de dirección EVM por defecto
+
+:::note
+Aunque el `PublicResolver` proporciona una implementación por defecto, recuerda que existen resolvers personalizados. Por lo tanto, no se recomienda codificar ninguna dirección. Para asegurar una implementación segura, siempre usa el método `supportsInterface()` para verificar la existencia de una interfaz específica. Ver [Interactuar con un Resolver](/es/resolvers/interacting) para cómo hacer esto.
+:::
+
+## Resolución de Dirección EVM Por Defecto
+
+El último resolver público soporta la noción de una "dirección EVM por defecto" para un nombre, representada por coinType `0`. Si esto está establecido, será devuelto por la función `addr(bytes32 node, uint256 coinType)` independientemente del parámetro `coinType`, a menos que sea sobrescrito por una dirección más específica.
+
+Esto se combina muy bien con el registrador inverso por defecto cuando se trata de [nombres primarios L2](/es/web/reverse#l2-primary-names).

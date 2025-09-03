@@ -1,0 +1,57 @@
+import { InterfaceDetails } from '../../../components/InterfaceDetails'
+import { universalresolver_methods } from '../../../data/universal-resolver'
+
+# Resolver Universal [Una navaja suiza para resolución.]
+
+## Resumen
+
+El Resolver Universal es un contrato que maneja el trabajo de resolver un nombre completamente en cadena, haciendo posible hacer una sola llamada de contrato inteligente para resolver un nombre ENS.
+
+Ten en cuenta que este contrato ya está integrado en librerías como [viem](https://viem.sh) y [ENSjs](https://github.com/ensdomains/ensjs), por lo que la mayoría de desarrolladores típicamente no necesitan usarlo directamente.
+
+### Resolución Hacia Adelante
+
+Para resolver uno o más registros para un nombre, usa uno de los métodos `resolve`, como `resolve(bytes name, bytes data)`.
+
+El argumento `name` para estos métodos será la versión [codificada DNS](/es/resolution/names#dns) del nombre. ¡Asegúrate de [normalizar](/es/resolution/names#normalize) el nombre primero también! Por ejemplo, dado el nombre `My.Name.eth`:
+
+1. Normalizar:
+   - `My.Name.eth` -> `my.name.eth`
+2. Codificar DNS:
+   - `my.name.eth` -> `0x026d79046e616d650365746800`
+
+El argumento `data` para estos métodos será una llamada codificada ABI al resolver para ese nombre.
+
+Por ejemplo, si quieres resolver la dirección ETH para `my.name.eth`, usando el método `addr(bytes32 node)`, entonces la llamada codificada ABI correspondiente sería:
+
+```
+0x3b3b57def61adbd8ee36cf930560efc644af752731733dc6421afe47608f8e2cfeaabe2b
+```
+
+Ver aquí para métodos estándar de resolver: [Estándares de Interfaz de Resolver](/es/resolvers/interfaces)
+
+### Resolución Inversa
+
+Para resolver inversamente una dirección a un nombre ENS, llama a uno de los métodos `reverse`, como `reverse(bytes reverseName)`.
+
+El argumento `reverseName` para estos métodos será la versión [codificada DNS](/es/resolution/names#dns) del nombre inverso. El "nombre inverso" es `[addr].addr.reverse`, donde `[addr]` es la dirección pública de Ethereum en minúsculas sin el "0x". ¡Asegúrate de [normalizar](/es/resolution/names#normalize) el nombre también! Por ejemplo, dada la dirección `0x231b0Ee14048e9dCcD1d247744d114a4EB5E8E63`:
+
+1. Construir Nombre Inverso:
+   ```
+   0x231b0Ee14048e9dCcD1d247744d114a4EB5E8E63 ->
+   231b0Ee14048e9dCcD1d247744d114a4EB5E8E63.addr.reverse
+   ```
+2. Normalizar:
+   ```
+   231b0Ee14048e9dCcD1d247744d114a4EB5E8E63.addr.reverse ->
+   231b0ee14048e9dccd1d247744d114a4eb5e8e63.addr.reverse
+   ```
+3. Codificar DNS:
+   ```
+   231b0ee14048e9dccd1d247744d114a4eb5e8e63.addr.reverse ->
+   0x28323331623065653134303438653964636364316432343737343464313134613465623565386536330461646472077265766572736500
+   ```
+
+## Estándares de Interfaz
+
+<InterfaceDetails methods={universalresolver_methods} />

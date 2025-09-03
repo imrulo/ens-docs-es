@@ -1,0 +1,67 @@
+# El Registro [Registro Raíz del Servicio de Nombres de Ethereum]
+
+El registro ENS es el contrato central que se encuentra en el corazón de la resolución ENS. Todas las búsquedas ENS comienzan consultando el registro. El registro mantiene una lista de dominios, registrando el propietario, resolver y TTL para cada uno, y permite al propietario de un dominio hacer cambios a esos datos.
+
+El registro ENS está especificado en [EIP 137](https://eips.ethereum.org/EIPS/eip-137).
+
+## ¿Por qué Registros?
+
+Los Dominios de Primer Nivel (TLDs), como `.eth`, `.com`, y `.test`, son propiedad de contratos inteligentes llamados <b>registradores</b>, que especifican reglas que gobiernan la asignación de sus nombres.
+Cualquiera puede, siguiendo las reglas impuestas por estos contratos registradores, obtener la propiedad de un dominio para su propio uso.
+
+| TLD                 | Contrato Registrador                     |
+| ------------------- | -------------------------------------- |
+| `[root]`            | [El Registro](/es/registry/ens)          |
+| `.eth`              | [Registro ETH](/es/registry/eth)          |
+| `.com`, `.xyz`, etc | [Registrador DNS](/es/registry/dns)         |
+| `.addr.reverse`     | [Registrador Inverso](/es/registry/reverse) |
+
+## ¿Quién posee el Registro raíz?
+
+El [Registro ENS](https://etherscan.io/address/0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e) es propiedad del [ENS Root](https://etherscan.io/address/0xaB528d626EC275E3faD363fF1393A41F581c5897) que es propiedad de la [ENS DAO Wallet](https://etherscan.io/address/0xFe89cc7aBB2C4183683ab71653C4cdc9B02D44b7).
+Para verificar esto puedes ejecutar la función `owner` en los contratos de registro y raíz.
+
+## Otras Funciones
+
+```ts
+// Obtener Propietario
+ENS.owner(bytes32 node) view returns (address)
+// Obtener Resolver
+ENS.resolver(bytes32 node) view returns (address)
+// Obtener TTL
+ENS.ttl(bytes32 node) view returns (uint64)
+// Obtener Aprobación
+ENS.isApprovedForAll(address owner, address operator) view returns (bool)
+// Verificar Existencia de Registro
+ENS.recordExists(bytes32 node) view returns (bool)
+```
+
+```ts
+// Establecer Propietario (solo llamable por el propietario actual)
+ENS.setOwner(bytes32 node, address owner)
+// Establecer Resolver
+ENS.setResolver(bytes32 node, address resolver)
+// Establecer TTL
+ENS.setTTL(bytes32 node, uint64 ttl)
+// Establecer Propietario de Subnodo
+ENS.setSubnodeOwner(bytes32 node, bytes32 label, address owner)
+// Establecer Múltiples (función de conveniencia (setResolver, setTTL, setOwner))
+ENS.setRecord(bytes32 node, address owner, address resolver, uint64 ttl)
+// Establecer Múltiples Subnodos
+ENS.setSubnodeRecord(bytes32 node, bytes32 label, address owner, address resolver, uint64 ttl)
+// Establecer Aprobación
+ENS.setApprovalForAll(address operator, bool approved)
+```
+
+Eventos
+
+```ts
+// Evento de Transferencia
+event Transfer(bytes32 indexed node, address owner)
+// Evento de Nuevo Resolver
+event NewResolver(bytes32 indexed node, address resolver)
+// Evento de Nuevo TTL
+event NewTTL(bytes32 indexed node, uint64 ttl)
+// Evento de Nuevo Propietario
+event NewOwner(bytes32 indexed node, bytes32 indexed label, address owner)
+```
