@@ -1,0 +1,170 @@
+# Nombrar Contratos [Aprende cómo nombrar tus contratos inteligentes con ENS]
+
+Aunque es comúnmente conocido que las cuentas de usuario regulares pueden tener [nombres primarios](/es/web/reverse), es menos conocido que los contratos inteligentes también pueden tener nombres.
+
+Para que puedas gestionar el nombre primario de tu contrato inteligente, necesitas poseer el [nodo inverso](/es/terminology#reverse-node) para la dirección del contrato. Hay varias formas de hacer esto, dependiendo de si estás desarrollando activamente tu contrato o si ya está desplegado.
+
+:::note
+Para habilitar la resolución inversa, debes establecer tanto el registro inverso como la dirección ETH a la dirección desplegada del contrato.
+:::
+
+Salta a [Herramientas de Nombrado](#naming-tools) para una solución frontend para nombrar tus contratos inteligentes.
+
+## Contratos Nuevos
+
+Dependiendo de tu caso de uso, hay algunas formas de establecer el nombre primario de un contrato inteligente.
+
+Si quieres poder cambiar el nombre más tarde, tienes dos opciones:
+
+- **(Recomendado)** Hacer el contrato [Ownable](https://docs.openzeppelin.com/contracts/5.x/access-control) y establecerte como el propietario.
+- Tomar propiedad del nodo inverso (`{address}.addr.reverse`) para el contrato.
+
+El método Ownable es preferido ya que es ampliamente usado y funciona bien con Etherscan.
+
+Para contratos sin permisos de administrador, puedes establecer el nombre inverso en el constructor. Este nombre no se puede cambiar más tarde.
+
+Veamos algunos ejemplos.
+
+### ReverseClaimer.sol
+
+:::note
+Aunque este método funciona perfectamente a nivel del protocolo ENS, Etherscan no indexa los eventos del contrato correctamente por lo que puede no aparecer en su UI.
+:::
+
+Este es un módulo simple que transfiere la propiedad del nodo inverso a una dirección de tu elección, que luego puede actualizar el nombre inverso en cualquier momento.
+
+```solidity
+import "@ensdomains/ens-contracts/contracts/registry/ENS.sol";
+import "@ensdomains/ens-contracts/contracts/reverseRegistrar/ReverseClaimer.sol";
+
+contract MyContract is ReverseClaimer {
+    constructor (
+        ENS ens
+    ) ReverseClaimer(ens, msg.sender) {}
+}
+```
+
+Cuando despliegues tu contrato, la cuenta desplegadora (`msg.sender`) recibirá la propiedad del nodo inverso para esa dirección de contrato. Esto te da autorización para llamar `setName(node, newName)` en el último resolver público ([resolver.ens.eth](https://etherscan.io/address/resolver.ens.eth)), donde `node` es el nodo inverso para la dirección del contrato y `newName` es el nombre al que quieres establecerlo.
+
+Para encontrar el nodo inverso para tu dirección de contrato, puedes usar el siguiente script de viem:
+
+```ts
+import { Hex, keccak256 } from 'viem'
+import { namehash } from 'viem/ens'
+
+function getNodeFromParentNodeAndLabelhash(parentNode: Hex, labelhash: Hex) {
+  return keccak256((parentNode + labelhash.split('0x')[1]) as Hex)
+}
+
+const myContractAddress = '0x...' // reemplaza con tu dirección de contrato
+
+const node = getNodeFromParentNodeAndLabelhash(
+  namehash('addr.reverse'),
+  labelhash(myContractAddress.slice(2).toLowerCase())
+)
+
+console.log(node)
+```
+
+### Ownable (recomendado)
+
+:::note
+Un ejemplo de esto es [ownable.contract.gtest.eth](https://etherscan.io/address/ownable.contract.gtest.eth#code)
+:::
+
+Si quieres poder cambiar el nombre en el futuro, puedes hacer tu contrato inteligente [Ownable](https://docs.openzeppelin.com/contracts/5.x/api/access#Ownable).
+
+```solidity
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+
+contract Contract is Ownable {
+    constructor(address initialOwner) Ownable(initialOwner) {}
+}
+```
+
+El [ReverseRegistrar](/es/registry/reverse) soporta la interfaz Ownable y permitirá que el `propietario` de un contrato establezca su nombre primario sin tener que agregar código específico de ENS.
+
+Una vez que este contrato esté desplegado, llama a `setNameForAddr(address, address, address, string)` en el Reverse Registrar ([reverse.ens.eth](https://etherscan.io/address/reverse.ens.eth)) desde tu cuenta de propietario autorizada.
+
+- El primer argumento de dirección es la dirección de tu contrato
+- El segundo argumento de dirección es el propietario de tu contrato inteligente
+- El tercer argumento de dirección es el `defaultResolver()` del Reverse Registrar
+- El cuarto argumento es el nombre ENS al que establecerlo
+
+### Establecer un nombre en el constructor
+
+:::note
+Un ejemplo de esto [contract.gtest.eth](https://etherscan.io/address/contract.gtest.eth#code)
+:::
+
+Si no quieres poder cambiar el nombre en el futuro, puedes heredar el siguiente contrato y asignar un nombre ENS directamente en el constructor.
+
+```solidity
+//SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+interface ENS {
+    function owner(bytes32 node) external view returns (address);
+}
+
+interface IReverseRegistrar {
+    function setName(string memory name) external returns (bytes32);
+}
+
+// Variación de ReverseClaimer.sol de @ensdomains/ens-contracts que establece el nombre inverso directamente.
+contract ReverseSetter {
+    /// @dev El registro ENS
+    ENS private constant ens = ENS(0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e);
+
+    /// @dev Salida de namehash("addr.reverse")
+    bytes32 private constant ADDR_REVERSE_NODE =
+        0x91d1777781884d03a6757a803996e38de2a42967fb37eeaca72729271025a9e2;
+
+    /// @param name El nombre inverso a establecer para la dirección de este contrato.
+    constructor(string memory name) {
+        IReverseRegistrar reverseRegistrar = IReverseRegistrar(
+            ens.owner(ADDR_REVERSE_NODE)
+        );
+        reverseRegistrar.setName(name);
+    }
+}
+```
+
+Usar esto en tu contrato es tan simple como:
+
+```solidity
+import {ReverseSetter} from "./ReverseSetter.sol";
+
+contract Contract is ReverseSetter {
+    constructor(string memory name) ReverseSetter(name) {}
+}
+```
+
+## Contratos Existentes
+
+Si tu contrato ya está desplegado, aún podrías poder establecer un nombre para él.
+Si tu contrato soporta la interfaz [Ownable](https://docs.openzeppelin.com/contracts/5.x/api/access#Ownable) de OpenZeppelin, lee la sección anterior.
+
+### Safe, Multisig y DAO
+
+Si tu contrato es un Safe, Multisig, DAO, o tiene una función que puede enviar llamadas ETH arbitrarias, puedes usar el contrato [ReverseRegistrar](/es/registry/reverse) directamente para establecer un nombre para él.
+Incluso podrías poder usar la [Aplicación ENS Manager](https://ens.app/) dentro de tu aplicación safe para establecer un nombre primario.
+
+## Herramientas de Nombrado
+
+:::warning
+Estas son herramientas de terceros y no están oficialmente soportadas por ENS Labs.
+:::
+
+[Enscribe](https://app.enscribe.xyz/) es una herramienta diseñada para simplificar el proceso de nombrar contratos inteligentes con nombres ENS. La aplicación permite a los usuarios desplegar nuevos contratos inteligentes con un nombre primario directamente y nombrar fácilmente contratos inteligentes existentes.
+
+Enscribe simplifica lo que de otra manera sería un proceso de múltiples pasos y propenso a errores ofreciendo:
+
+- Despliegue atómico de contratos usando `CREATE2`
+- Nombrado de contratos `Ownable`, `ERC173`, `ReverseClaimer` y `ReverseSetter` como se describe arriba
+- Creación de subnombres ENS, resolución hacia adelante y asignación de registros inversos
+- Nombrado de contratos existentes, con una forma fácil de localizar contratos que ya has desplegado
+
+Incluso si no posees un nombre ENS, aún puedes utilizar el padre ENS alojado de Enscribe, `deployd.eth`, para crear subnombres como `my-app.deployd.eth` y establecerlos como el nombre primario para tu contrato.
+
+Para aprender más, consulta la [Documentación de Enscribe](https://www.enscribe.xyz/docs/).
