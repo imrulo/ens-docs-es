@@ -1,0 +1,345 @@
+# Name Wrapper Use-Cases
+
+## Lock the resolved records for a name
+
+By default, newly registered names will use the Public Resolver, which just allows the current manager/controller of the name to update any records.
+
+However, in some cases perhaps you want to make sure that a name resolves to specific records and **never** changes. You can accomplish this with the **`CANNOT_SET_RESOLVER`** fuse.
+
+Say you own `mycoolcontract.eth` representing a smart contract. You can use ENS subnames to refer to specific versions of that contract, like `1.mycoolcontract.eth`. And perhaps you want those versioned subnames to always point to:
+
+- The ETH address of that immutable contract
+- The ABI for that contract
+- The contenthash for some versioned documentation page
+- etc.
+
+One way to do this is just to make sure the name is **Locked**, all the records are set correctly, and then transfer the owner to some burn address so it can never be updated again.
+
+But of course this isn't ideal, because maybe there are some records that you _do_ want to update in the future. Or maybe you still want to keep ownership of that subname for other reasons.
+
+Instead of essentially burning the name, you could create a custom resolver that locks in certain records forever. Then:
+
+1. Set the resolver of that name to your custom contract
+2. Set the records however you want and lock them into the resolver
+3. Burn these fuses on the name:
+   - `PARENT_CANNOT_CONTROL | CANNOT_UNWRAP | CANNOT_SET_RESOLVER`
+
+Now you can still keep ownership and even some limited management power over the name, while still guaranteeing that the ETH address, ABI, and whatever other records are completely immutable, as long as the expiry is set appropriately.
+
+## Issue subdomains as tickets to an event
+
+Maybe you have `mycoolevent.eth` and you want to issue tickets like `1.ticket.2023.mycoolevent.eth`.
+
+If you want, you can choose to not Emancipate those subnames, but still burn some custom parent-controlled fuses. Those fuses might:
+
+- Indicate what "tier" their event ticket is
+  - Maybe they can upgrade their ticket to a higher tier, which would burn some additional fuses
+- Allow them access to the express line or some VIP room
+  - Maybe even automatically via some smart door
+
+When you burn those fuses, perhaps you also set the expiry to the day after the event ends.
+
+Or, maybe you want your attendees to be able to keep their subnames as a souvenir or proof-of-attendance!
+
+If so, then instead of letting the names expire at the end of the event, you could extend the expiry and burn some additional fuses to allow the attendees to keep them forever! In that case you might want to burn these fuses:
+
+- `CAN_EXTEND_EXPIRY | PARENT_CANNOT_CONTROL`
+
+If you want those tickets to be non-transferrable (soulbound to the address that attended), then burn these fuses:
+
+- `CAN_EXTEND_EXPIRY | PARENT_CANNOT_CONTROL | CANNOT_UNWRAP | CANNOT_TRANSFER`
+
+## Sell or rent subnames
+
+### I want to sell / rent out subnames!
+
+Say you own the wrapped name `verypopularname.eth`. Obviously you can just manually create wrapped subnames like `my.verypopularname.eth` and then sell them on an NFT marketplace. But that sure doesn't scale well.
+
+To accomplish this, you will want to create a **subname registrar**. This is a contract that will handle all the registration / renewal for you, and then users will be able to interact with that contract in order to register their own subnames.
+
+In fact, this is exactly how .eth 2LDs are registered. The owner of the `eth` TLD (the NFT contract) delegates registration / renewal to the ETHRegistrarController contract. It is acting as a subname registrar for the name `eth`.
+
+Your contract would expose a `register` method that anyone can call. Under the hood it will use the [setSubnodeOwner](https://github.com/ensdomains/ens-contracts/tree/master/contracts/wrapper#setsubnodeowner) or [setSubnodeRecord](https://github.com/ensdomains/ens-contracts/tree/master/contracts/wrapper#setsubnoderecord) methods to create subnames, passing in the **fuses** and **expiry** you want to set.
+
+### What fuses should I burn???
+
+First, note that if you want to burn any fuses on subnames, then your name must be **Locked** (meaning **`CANNOT_UNWRAP`** is burned).
+
+Assuming that you want your subnames to be "unruggable", such that you cannot replace / revoke them, then you will want to burn **`PARENT_CANNOT_CONTROL`** on the subnames. This will place them in the **Emancipated** state upon registration.
+
+If you want to sell "forever" subnames, where users register once and can then keep them for as long as they wish, then you can consider burning the **`CAN_EXTEND_EXPIRY`** fuse.
+
+This will allow the subname owner to extend their own expiry whenever they want. The max expiry is the expiry of the parent name, but the .eth Registrar allows _anyone_ to renew/extend a .eth 2LD as well.
+
+If you just want to **rent** subnames, then do not burn **`CAN_EXTEND_EXPIRY`**. Instead, you could include a `renew` method on your contract that users can call for another fee.
+
+If you want to enable "unruggable renewals" for your registrar, to guarantee that users will always be able to renew, then you can call `approve` on the Name Wrapper and approve your registrar contract as the "subname renewal manager" for your name.
+
+Then, burn the **`CANNOT_APPROVE`** fuse on your name, to guarantee that you can never revoke that contract for subname renewals. See [Approved Operators](/wrapper/contracts/#approved-operators) for more info.
+
+If you want to impose other restrictions on your registered subnames, then you can burn the **`CANNOT_UNWRAP`** fuse to Lock the subname, and also burn whatever other fuses you want.
+
+For example, if you want to prevent owners of your subnames (like `my.verypopularname.eth` from creating their own subnames (like `buy.my.verypopularname.eth`), then you would burn **`CANNOT_UNWRAP`** and **`CANNOT_CREATE_SUBDOMAIN`**.
+
+To recap on fuses...
+
+- Sell permanent names:
+  - `CAN_EXTEND_EXPIRY | PARENT_CANNOT_CONTROL`
+- Sell permanent names, but prevent them from creating their own subnames:
+  - `CAN_EXTEND_EXPIRY | PARENT_CANNOT_CONTROL | CANNOT_UNWRAP | CANNOT_CREATE_SUBDOMAIN`
+- Rent out names:
+  - `PARENT_CANNOT_CONTROL`
+- Rent out names, but prevent them from transferring or reselling them:
+  - `PARENT_CANNOT_CONTROL | CANNOT_UNWRAP | CANNOT_TRANSFER`
+
+And so on, it's up to you. You can also burn whatever custom parent-controlled or owner-controlled fuses you want to.
+
+### Can I customize my own rules and fees?
+
+Yes! It's your registrar contract, so you can impose whatever rules and fees you want.
+
+For example, the .eth Registrar imposes a 3-character minimum on all names, as well as a [custom fee structure](https://support.ens.domains/core/registration/fees) and a [temporary premium auction](https://support.ens.domains/core/registration/temporary-premium) upon expiration.
+
+By default there is no character limit on subnames, but your contract could have its own rules and fee structure or whatever you want. For example, you can:
+
+- Allow or disallow specific addresses from registering / renewing
+- Only allow registration based on some custom criteria like holding a specific NFT
+- Custom length restrictions like only 3+ characters or < 100 characters
+- Only allow names with characters `[a-z0-9]` and nothing else
+- Use a custom fee structure based on:
+  - The length of the name
+  - The specific characters that are in the name, like emojis
+  - A pre-curated list of "good" names like people's first names
+- And whatever other rules you want.
+
+### More information
+
+See this page for a step-by-step guide on creating and setting up your own subname registrar: [Creating a Subname Registrar](/wrapper/creating-subname-registrar)
+
+There is even a set of [reference implementation contracts](/wrapper/creating-subname-registrar#reference-implementation) you can use as a starting base!
+
+## Give subnames out to NFT holders
+
+### I want to give subnames out to all of my DAO members / NFT holders!
+
+Say you own the wrapped name `mycoolnft.eth`, representing a popular NFT project you created. You want to distribute subnames like `6529.mycoolnft.eth` to all holders.
+
+One option is to just bulk create the subnames and drop the wrapped NFTs into their wallets. This might be good at least as an initial drop, because then the holders don't need to interact with any contract or spend any gas, you're doing that for them!
+
+To create the subnames, you'd use the [setSubnodeOwner](https://github.com/ensdomains/ens-contracts/tree/master/contracts/wrapper#setsubnodeowner) or [setSubnodeRecord](https://github.com/ensdomains/ens-contracts/tree/master/contracts/wrapper#setsubnoderecord) methods.
+
+You must also decide:
+
+### How much control over the subnames do you want to relinquish?
+
+Do you want to be able to revoke subnames? Or do you want them to be completely outside your control?
+
+One thing to consider is whether you want the **current** holder of your NFT to always be able to claim/reclaim the corresponding ENS subname. If so, then you will **not** want to Emancipate those subnames (in other words, do not burn **`PARENT_CANNOT_CONTROL`**).
+
+If the subname is Emancipated, then the NFT holder could sell/transfer the NFT but keep the subname (up until the expiry).
+
+To make it easy for anyone to claim/reclaim a subname after your initial drop, you can set up a contract for this.
+
+### Setting up a subname claim contract
+
+The claim method of your contract could:
+
+1. Call `ownerOf` or `balanceOf` on your NFT contract to get or verify the current owner of the NFT
+2. Call `ownerOf` or `balanceOf` on the ENS Name Wrapper contract to get or verify the current owner of the wrapped subname
+   - If both owner addresses are the same, just return, nothing to do
+3. Call `setSubnodeOwner` or `setSubnodeRecord` on the ENS Name Wrapper:
+   - **owner:** The current owner of the NFT
+   - **fuses:** What fuses you want to burn (if any) on that subname. If you burn any fuses, you must also set an expiry.
+   - **expiry:** When the subname will expire.
+
+Then, to give that contract access to create subnames on your behalf, you would call `setApprovalForAll` on the Name Wrapper to approve your contract as an operator.
+
+Now, even if the NFT gets sold / transferred, the new owner will be able to claim their `mycoolnft.eth` subname at any time.
+
+In addition, if you expand your NFT collection in the future and there are new owners, then those new owners would be able to claim their subnames as well.
+
+If you are creating a new NFT contract, you could even bake this functionality **directly into the NFT contract** too, instead of needing a separate contract! By doing this, you wouldn't need a separate `claim` method either, your NFT contract would just **automatically transfer the wrapped ENS subname** whenever the NFT itself gets transferred!
+
+### Giving your subname owners perks
+
+If you decide to not Emancipate the subnames that you issue, you _will_ still be able to burn any Parent-Controlled Fuses. There are 13 unreserved parent-controlled fuses that you can use however you wish!
+
+For example, perhaps you want to grant onchain "perks" or "roles" to certain holders. You would call [setChildFuses](https://github.com/ensdomains/ens-contracts/tree/master/contracts/wrapper#setchildfuses) on the Name Wrapper and pass in the fuses you want to burn, and the expiry.
+
+This means that those "perks" or "roles" can also be time-boxed if you want. Maybe a perk expires in 1 week or something, up to you.
+
+There is also the reserved **`CAN_EXTEND_EXPIRY`** parent-controlled fuse. If you burn this, then the subname owner will be able to extend their own expiry whenever they want.
+
+---
+
+# Casos de Uso del Name Wrapper
+
+## Bloquear los registros resueltos para un nombre
+
+Por defecto, los nombres recién registrados usarán el Public Resolver, que simplemente permite que el administrador/controlador actual del nombre actualice cualquier registro.
+
+Sin embargo, en algunos casos tal vez quieras asegurarte de que un nombre se resuelva a registros específicos y **nunca** cambie. Puedes lograr esto con el fusible **`CANNOT_SET_RESOLVER`**.
+
+Digamos que posees `mycoolcontract.eth` representando un contrato inteligente. Puedes usar subnombres ENS para referirte a versiones específicas de ese contrato, como `1.mycoolcontract.eth`. Y tal vez quieras que esos subnombres versionados siempre apunten a:
+
+- La dirección ETH de ese contrato inmutable
+- El ABI para ese contrato
+- El contenthash para alguna página de documentación versionada
+- etc.
+
+Una forma de hacer esto es simplemente asegurarte de que el nombre esté **Bloqueado**, todos los registros estén configurados correctamente, y luego transferir el propietario a alguna dirección de quema para que nunca pueda ser actualizado de nuevo.
+
+Pero por supuesto esto no es ideal, porque tal vez hay algunos registros que _sí_ quieres actualizar en el futuro. O tal vez aún quieres mantener la propiedad de ese subnombre por otras razones.
+
+En lugar de esencialmente quemar el nombre, podrías crear un resolver personalizado que bloquee ciertos registros para siempre. Entonces:
+
+1. Establece el resolver de ese nombre a tu contrato personalizado
+2. Establece los registros como quieras y bloquéalos en el resolver
+3. Quema estos fusibles en el nombre:
+   - `PARENT_CANNOT_CONTROL | CANNOT_UNWRAP | CANNOT_SET_RESOLVER`
+
+Ahora aún puedes mantener la propiedad e incluso algo de poder de gestión limitado sobre el nombre, mientras aún garantizas que la dirección ETH, ABI, y cualquier otro registro sean completamente inmutables, siempre que el vencimiento esté configurado apropiadamente.
+
+## Emitir subdominios como boletos para un evento
+
+Tal vez tienes `mycoolevent.eth` y quieres emitir boletos como `1.ticket.2023.mycoolevent.eth`.
+
+Si quieres, puedes elegir no Emancipar esos subnombres, pero aún quemar algunos fusibles personalizados controlados por el padre. Esos fusibles podrían:
+
+- Indicar qué "nivel" es su boleto de evento
+  - Tal vez pueden actualizar su boleto a un nivel más alto, lo que quemaría algunos fusibles adicionales
+- Permitirles acceso a la línea express o alguna sala VIP
+  - Tal vez incluso automáticamente a través de alguna puerta inteligente
+
+Cuando quemas esos fusibles, tal vez también estableces el vencimiento al día después de que termine el evento.
+
+O, tal vez quieres que tus asistentes puedan mantener sus subnombres como recuerdo o prueba de asistencia!
+
+Si es así, entonces en lugar de dejar que los nombres expiren al final del evento, podrías extender el vencimiento y quemar algunos fusibles adicionales para permitir que los asistentes los mantengan para siempre! En ese caso podrías querer quemar estos fusibles:
+
+- `CAN_EXTEND_EXPIRY | PARENT_CANNOT_CONTROL`
+
+Si quieres que esos boletos no sean transferibles (vinculados al alma a la dirección que asistió), entonces quema estos fusibles:
+
+- `CAN_EXTEND_EXPIRY | PARENT_CANNOT_CONTROL | CANNOT_UNWRAP | CANNOT_TRANSFER`
+
+## Vender o alquilar subnombres
+
+### ¡Quiero vender/alquilar subnombres!
+
+Digamos que posees el nombre envuelto `verypopularname.eth`. Obviamente puedes simplemente crear manualmente subnombres envueltos como `my.verypopularname.eth` y luego venderlos en un marketplace de NFT. Pero eso definitivamente no escala bien.
+
+Para lograr esto, querrás crear un **registrador de subnombres**. Este es un contrato que manejará toda la registración/renovación por ti, y luego los usuarios podrán interactuar con ese contrato para registrar sus propios subnombres.
+
+De hecho, así es exactamente como se registran los 2LDs .eth. El propietario del TLD `eth` (el contrato NFT) delega la registración/renovación al contrato ETHRegistrarController. Está actuando como un registrador de subnombres para el nombre `eth`.
+
+Tu contrato expondría un método `register` que cualquiera puede llamar. Bajo el capó usará los métodos [setSubnodeOwner](https://github.com/ensdomains/ens-contracts/tree/master/contracts/wrapper#setsubnodeowner) o [setSubnodeRecord](https://github.com/ensdomains/ens-contracts/tree/master/contracts/wrapper#setsubnoderecord) para crear subnombres, pasando los **fusibles** y **vencimiento** que quieras establecer.
+
+### ¿Qué fusibles debería quemar???
+
+Primero, nota que si quieres quemar cualquier fusible en subnombres, entonces tu nombre debe estar **Bloqueado** (significando que **`CANNOT_UNWRAP`** está quemado).
+
+Asumiendo que quieres que tus subnombres sean "unruggable", tal que no puedas reemplazarlos/revocarlos, entonces querrás quemar **`PARENT_CANNOT_CONTROL`** en los subnombres. Esto los colocará en el estado **Emancipado** al registrarse.
+
+Si quieres vender subnombres "para siempre", donde los usuarios se registran una vez y luego pueden mantenerlos por el tiempo que deseen, entonces puedes considerar quemar el fusible **`CAN_EXTEND_EXPIRY`**.
+
+Esto permitirá que el propietario del subnombre extienda su propio vencimiento cuando quiera. El vencimiento máximo es el vencimiento del nombre padre, pero el Registrador .eth permite que _cualquiera_ renueve/extienda un 2LD .eth también.
+
+Si solo quieres **alquilar** subnombres, entonces no quemes **`CAN_EXTEND_EXPIRY`**. En su lugar, podrías incluir un método `renew` en tu contrato que los usuarios pueden llamar por otra tarifa.
+
+Si quieres habilitar "renovaciones unruggable" para tu registrador, para garantizar que los usuarios siempre podrán renovar, entonces puedes llamar `approve` en el Name Wrapper y aprobar tu contrato registrador como el "administrador de renovación de subnombres" para tu nombre.
+
+Entonces, quema el fusible **`CANNOT_APPROVE`** en tu nombre, para garantizar que nunca puedas revocar ese contrato para renovaciones de subnombres. Ve [Operadores Aprobados](/es/wrapper/contracts/#approved-operators) para más información.
+
+Si quieres imponer otras restricciones en tus subnombres registrados, entonces puedes quemar el fusible **`CANNOT_UNWRAP`** para Bloquear el subnombre, y también quemar cualquier otro fusible que quieras.
+
+Por ejemplo, si quieres prevenir que los propietarios de tus subnombres (como `my.verypopularname.eth` de crear sus propios subnombres (como `buy.my.verypopularname.eth`), entonces quemarías **`CANNOT_UNWRAP`** y **`CANNOT_CREATE_SUBDOMAIN`**.
+
+Para recapitular sobre fusibles...
+
+- Vender nombres permanentes:
+  - `CAN_EXTEND_EXPIRY | PARENT_CANNOT_CONTROL`
+- Vender nombres permanentes, pero prevenir que creen sus propios subnombres:
+  - `CAN_EXTEND_EXPIRY | PARENT_CANNOT_CONTROL | CANNOT_UNWRAP | CANNOT_CREATE_SUBDOMAIN`
+- Alquilar nombres:
+  - `PARENT_CANNOT_CONTROL`
+- Alquilar nombres, pero prevenir que los transfieran o revendan:
+  - `PARENT_CANNOT_CONTROL | CANNOT_UNWRAP | CANNOT_TRANSFER`
+
+Y así sucesivamente, depende de ti. También puedes quemar cualquier fusible personalizado controlado por el padre o controlado por el propietario que quieras.
+
+### ¿Puedo personalizar mis propias reglas y tarifas?
+
+¡Sí! Es tu contrato registrador, así que puedes imponer cualquier regla y tarifa que quieras.
+
+Por ejemplo, el Registrador .eth impone un mínimo de 3 caracteres en todos los nombres, así como una [estructura de tarifas personalizada](https://support.ens.domains/core/registration/fees) y una [subasta premium temporal](https://support.ens.domains/core/registration/temporary-premium) al expirar.
+
+Por defecto no hay límite de caracteres en subnombres, pero tu contrato podría tener sus propias reglas y estructura de tarifas o lo que quieras. Por ejemplo, puedes:
+
+- Permitir o prohibir direcciones específicas de registrarse/renovar
+- Solo permitir registración basada en algunos criterios personalizados como poseer un NFT específico
+- Restricciones de longitud personalizadas como solo 3+ caracteres o < 100 caracteres
+- Solo permitir nombres con caracteres `[a-z0-9]` y nada más
+- Usar una estructura de tarifas personalizada basada en:
+  - La longitud del nombre
+  - Los caracteres específicos que están en el nombre, como emojis
+  - Una lista pre-curada de nombres "buenos" como los nombres de pila de las personas
+- Y cualquier otra regla que quieras.
+
+### Más información
+
+Ve esta página para una guía paso a paso sobre crear y configurar tu propio registrador de subnombres: [Crear un Registrador de Subnombres](/es/wrapper/creating-subname-registrar)
+
+¡Incluso hay un conjunto de [contratos de implementación de referencia](/es/wrapper/creating-subname-registrar#reference-implementation) que puedes usar como base de inicio!
+
+## Dar subnombres a poseedores de NFT
+
+### ¡Quiero dar subnombres a todos mis miembros de DAO/poseedores de NFT!
+
+Digamos que posees el nombre envuelto `mycoolnft.eth`, representando un proyecto NFT popular que creaste. Quieres distribuir subnombres como `6529.mycoolnft.eth` a todos los poseedores.
+
+Una opción es simplemente crear en masa los subnombres y dejar caer los NFTs envueltos en sus wallets. Esto podría ser bueno al menos como una caída inicial, porque entonces los poseedores no necesitan interactuar con ningún contrato o gastar gas, ¡tú lo estás haciendo por ellos!
+
+Para crear los subnombres, usarías los métodos [setSubnodeOwner](https://github.com/ensdomains/ens-contracts/tree/master/contracts/wrapper#setsubnodeowner) o [setSubnodeRecord](https://github.com/ensdomains/ens-contracts/tree/master/contracts/wrapper#setsubnoderecord).
+
+También debes decidir:
+
+### ¿Cuánto control sobre los subnombres quieres renunciar?
+
+¿Quieres poder revocar subnombres? ¿O quieres que estén completamente fuera de tu control?
+
+Una cosa a considerar es si quieres que el poseedor **actual** de tu NFT siempre pueda reclamar/reclamar el subnombre ENS correspondiente. Si es así, entonces **no** querrás Emancipar esos subnombres (en otras palabras, no quemes **`PARENT_CANNOT_CONTROL`**).
+
+Si el subnombre está Emancipado, entonces el poseedor del NFT podría vender/transferir el NFT pero mantener el subnombre (hasta el vencimiento).
+
+Para hacer fácil que cualquiera reclame/reclame un subnombre después de tu caída inicial, puedes configurar un contrato para esto.
+
+### Configurar un contrato de reclamación de subnombres
+
+El método de reclamación de tu contrato podría:
+
+1. Llamar `ownerOf` o `balanceOf` en tu contrato NFT para obtener o verificar el propietario actual del NFT
+2. Llamar `ownerOf` o `balanceOf` en el contrato ENS Name Wrapper para obtener o verificar el propietario actual del subnombre envuelto
+   - Si ambas direcciones de propietario son las mismas, simplemente regresa, nada que hacer
+3. Llamar `setSubnodeOwner` o `setSubnodeRecord` en el ENS Name Wrapper:
+   - **propietario:** El propietario actual del NFT
+   - **fusibles:** Qué fusibles quieres quemar (si los hay) en ese subnombre. Si quemas cualquier fusible, también debes establecer un vencimiento.
+   - **vencimiento:** Cuándo expirará el subnombre.
+
+Entonces, para dar a ese contrato acceso para crear subnombres en tu nombre, llamarías `setApprovalForAll` en el Name Wrapper para aprobar tu contrato como operador.
+
+Ahora, incluso si el NFT se vende/transfiere, el nuevo propietario podrá reclamar su subnombre `mycoolnft.eth` en cualquier momento.
+
+Además, si expandes tu colección NFT en el futuro y hay nuevos propietarios, entonces esos nuevos propietarios también podrán reclamar sus subnombres.
+
+Si estás creando un nuevo contrato NFT, ¡incluso podrías hornear esta funcionalidad **directamente en el contrato NFT** también, en lugar de necesitar un contrato separado! Al hacer esto, tampoco necesitarías un método `claim` separado, ¡tu contrato NFT simplemente **transferiría automáticamente el subnombre ENS envuelto** cada vez que el NFT mismo se transfiera!
+
+### Dando beneficios a tus propietarios de subnombres
+
+Si decides no Emancipar los subnombres que emites, aún _podrás_ quemar cualquier Fusible Controlado por el Padre. ¡Hay 13 fusibles controlados por el padre no reservados que puedes usar como quieras!
+
+Por ejemplo, tal vez quieres otorgar "beneficios" o "roles" en cadena a ciertos poseedores. Llamarías [setChildFuses](https://github.com/ensdomains/ens-contracts/tree/master/contracts/wrapper#setchildfuses) en el Name Wrapper y pasarías los fusibles que quieres quemar, y el vencimiento.
+
+Esto significa que esos "beneficios" o "roles" también pueden ser limitados en tiempo si quieres. Tal vez un beneficio expira en 1 semana o algo así, depende de ti.
+
+También está el fusible **`CAN_EXTEND_EXPIRY`** controlado por el padre reservado. Si quemas esto, entonces el propietario del subnombre podrá extender su propio vencimiento cuando quiera.

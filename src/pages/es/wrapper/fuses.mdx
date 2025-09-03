@@ -1,0 +1,169 @@
+# Name Wrapper Fuses
+
+A "fuse" is a permission or perk that can be granted/revoked on a name. As the name implies, once the fuse is "burned", it cannot be unburned.
+
+Fuses will only reset when the **expiry** is reached. In the ENS Manager UI, this is available in the "Permissions" section of the name.
+
+By **wrapped expiry**, we mean that for .eth second-level names (like `name.eth`), this is the end of the 90-day grace period, the time at which the .eth 2LD is truly released. For all other names (such as subnames), there is no grace period, so the expiry is just the expiration date for that specific subname.
+
+For example, by default when you wrap a name, you can transfer that NFT around freely, just as you can with other NFTs. However, if the **`CANNOT_TRANSFER`** fuse is burned, then the NFT becomes non-transferrable. In the ENS Manager UI, you would do this by revoking the "Can send this name" permission.
+
+In order to burn fuses on a name, the parent name must be **Locked** (meaning, you cannot unwrap the name). The reason is, if the parent name was not locked, then the owner of the parent name could simply get around the constraints of the Name Wrapper by unwrapping the name, and replacing/revoking subnames against the core ENS Registry.
+
+There are parent-controlled and owner-controlled fuses:
+
+## Parent-Controlled Fuses
+
+Only the owner of the parent name can burn one of these fuses on a name. These can generally be thought of as "perks" that can be granted to a name, though they can be used in other ways.
+
+| Fuse name                   | Description                                                                                                                                                                                                                                                                                      |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **`PARENT_CANNOT_CONTROL`** | Allows a parent owner to **Emancipate** a child name. After this is burned, the parent will no longer be able to burn any further fuses, and will no longer be able to replace/delete the child name. This fuse must be burned in order for any owner-controlled fuses to be burned on the name. |
+| **`IS_DOT_ETH`**            | This fuse cannot be burned by users of the Name Wrapper, it is only set internally when a .eth 2LD is wrapped.                                                                                                                                                                                   |
+| **`CAN_EXTEND_EXPIRY`**     | The owner of the child name will be able to extend their own expiry. Normally, only the parent owner can extend the expiry of a child name. See the [Expiry](/wrapper/expiry) section for more information.                                                                                      |
+| **Custom Fuses**            | There are 13 other parent-controlled fuses that are not reserved, and can be used in any custom way you want!                                                                                                                                                                                    |
+
+## Owner-Controlled Fuses
+
+Either the owner of the name or the owner of the parent name can burn one of these fuses. These can generally be thought of as "permissions" that can be revoked on a name, though they can be used in other ways.
+
+| Fuse name                     | Description                                                                                                                                                       |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`CANNOT_UNWRAP`**           | The name will now be **Locked**, and can no longer be unwrapped. This fuse must be burned in order for any other owner-controlled fuses to be burned on the name. |
+| **`CANNOT_BURN_FUSES`**       | No further fuses can be burned on the name.                                                                                                                       |
+| **`CANNOT_TRANSFER`**         | The name (wrapped NFT) can no longer be transferred.                                                                                                              |
+| **`CANNOT_SET_RESOLVER`**     | The resolver contract for the name can no longer be updated.                                                                                                      |
+| **`CANNOT_SET_TTL`**          | The TTL for the name can no longer be updated.                                                                                                                    |
+| **`CANNOT_CREATE_SUBDOMAIN`** | New subdomains can no longer be created.                                                                                                                          |
+| **`CANNOT_APPROVE`**          | The approved "subname renewal manager" for the name can no longer be updated. See the [Approved Operators](#approved-operators) section for more information.     |
+| **Custom Fuses**              | There are 9 other owner-controlled fuses that are not reserved, and can be used in any custom way you want!                                                       |
+
+## The Emancipated and Locked States
+
+This is also covered in the [Wrapped States](/wrapper/states) section, but here is a quick recap:
+
+All .eth second-level names (like `name.eth`) are automatically placed into the Emancipated state when wrapped.
+
+**Emancipated** means that the parent no longer has control over the child name. It can no longer burn any fuses or replace the subname, up until the expiry.
+
+A name is Emancipated when the parent burns the **`PARENT_CANNOT_CONTROL`** (PCC) fuse. The parent must first be in the Locked state to be able to do this.
+
+**Locked** means that the name cannot be unwrapped. This provides assurance to subnames that the parent owner cannot unwrap and then, for example, start replacing subnames directly against the registry.
+
+An Emancipated name is Locked when the **`CANNOT_UNWRAP`** (CU) fuse is burned.
+
+Think of the special PCC / CU fuses recursively:
+
+- To burn owner-controlled or subname fuses, CU must be burned.
+- To burn CU, PCC must be burned.
+- Only the parent can burn PCC on the child name, and only if CU is first burned on the parent.
+- Only the grandparent can burn PCC on the parent name, and only if CU is first burned on the grandparent.
+- And so on...
+
+Follow that chain up until you hit a .eth second-level name like `name.eth`, since .eth second-level names will have PCC automatically burned when wrapping. The parent `eth` node is already in the Locked state.
+
+A parent name can burn all the fuses it needs to on a child name in one transaction. This can be done when the subname is created, or on an existing subname that has not yet been Emancipated.
+
+## DNS Domains and Fuses
+
+Currently, only .eth names support fuses, because only the `eth` node is onchain native and completely locked beyond anyone's control.
+
+Technically speaking, the owner of a DNS TLD has the ability to burn fuses on that TLD in the Name Wrapper, and set it to the "Locked" state. And then from there, all subnames under that DNS TLD _will_ be able to use fuses.
+
+The DNS TLD owner would need to:
+
+- Request the Controller of that TLD from the ENS DAO
+- Wrap the TLD node in the Name Wrapper
+- Burn the **`PARENT_CANNOT_CONTROL`** and **`CANNOT_UNWRAP`** fuses on the wrapped TLD to lock it
+
+However, this still does not have all the immutable guarantees that .eth names do. This is because for DNS names, the "source of truth" always lies not in the Ethereum network, but in the DNS network, and the DNS root zone governed by ICANN stakeholders.
+
+So even if the DNS TLD owner "Locks" that TLD in the ENS Name Wrapper, if that TLD were to ever change ownership on the DNS side, then (per the [ENS DAO Constitution](https://docs.ens.domains/v/governance/ens-dao-constitution#iv.-ens-integrates-with-the-global-namespace)) the new owner would be able to override control of that TLD on the ENS side, unwrap it, and replace/revoke all 2LDs. This is just something to keep in mind for wrapped DNS domains.
+
+Even if wrapped DNS domains do not support fuses, you can still use them as ERC-1155 NFTs. They will still have their own NFT metadata and show up in your wallet, with whatever avatar you have set, etc. They just won't have all the extra functionality that comes with the fuse/permission system.
+
+---
+
+# Fusibles del Name Wrapper
+
+Un "fusible" es un permiso o beneficio que puede ser otorgado/revocado en un nombre. Como implica el nombre, una vez que el fusible está "quemado", no puede ser desquemado.
+
+Los fusibles solo se reiniciarán cuando se alcance el **vencimiento**. En la UI del ENS Manager, esto está disponible en la sección "Permisos" del nombre.
+
+Por **vencimiento envuelto**, queremos decir que para nombres de segundo nivel .eth (como `name.eth`), este es el final del período de gracia de 90 días, el momento en que el 2LD .eth es verdaderamente liberado. Para todos los demás nombres (como subnombres), no hay período de gracia, por lo que el vencimiento es solo la fecha de expiración para ese subnombre específico.
+
+Por ejemplo, por defecto cuando envuelves un nombre, puedes transferir ese NFT libremente, igual que puedes con otros NFTs. Sin embargo, si el fusible **`CANNOT_TRANSFER`** está quemado, entonces el NFT se vuelve no transferible. En la UI del ENS Manager, harías esto revocando el permiso "Can send this name".
+
+Para poder quemar fusibles en un nombre, el nombre padre debe estar **Bloqueado** (significando, no puedes desenrollar el nombre). La razón es, si el nombre padre no estuviera bloqueado, entonces el propietario del nombre padre podría simplemente evitar las restricciones del Name Wrapper desenrollando el nombre, y reemplazando/revocando subnombres contra el Registro ENS central.
+
+Hay fusibles controlados por el padre y controlados por el propietario:
+
+## Fusibles Controlados por el Padre
+
+Solo el propietario del nombre padre puede quemar uno de estos fusibles en un nombre. Estos generalmente pueden pensarse como "beneficios" que pueden ser otorgados a un nombre, aunque pueden usarse de otras maneras.
+
+| Nombre del Fusible           | Descripción                                                                                                                                                                                                                                                                                      |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **`PARENT_CANNOT_CONTROL`**  | Permite que un propietario padre **Emancipar** un nombre hijo. Después de que esto se quema, el padre ya no podrá quemar más fusibles, y ya no podrá reemplazar/eliminar el nombre hijo. Este fusible debe ser quemado para que cualquier fusible controlado por el propietario pueda ser quemado en el nombre. |
+| **`IS_DOT_ETH`**             | Este fusible no puede ser quemado por usuarios del Name Wrapper, solo se establece internamente cuando un 2LD .eth está envuelto.                                                                                                                                                                   |
+| **`CAN_EXTEND_EXPIRY`**      | El propietario del nombre hijo podrá extender su propio vencimiento. Normalmente, solo el propietario padre puede extender el vencimiento de un nombre hijo. Ve la sección [Vencimiento](/es/wrapper/expiry) para más información.                                                                  |
+| **Fusibles Personalizados**  | ¡Hay 13 otros fusibles controlados por el padre que no están reservados, y pueden usarse de cualquier manera personalizada que quieras!                                                                                                                                                            |
+
+## Fusibles Controlados por el Propietario
+
+Tanto el propietario del nombre como el propietario del nombre padre pueden quemar uno de estos fusibles. Estos generalmente pueden pensarse como "permisos" que pueden ser revocados en un nombre, aunque pueden usarse de otras maneras.
+
+| Nombre del Fusible             | Descripción                                                                                                                                                       |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`CANNOT_UNWRAP`**            | El nombre ahora estará **Bloqueado**, y ya no puede ser desenrollado. Este fusible debe ser quemado para que cualquier otro fusible controlado por el propietario pueda ser quemado en el nombre. |
+| **`CANNOT_BURN_FUSES`**        | No se pueden quemar más fusibles en el nombre.                                                                                                                     |
+| **`CANNOT_TRANSFER`**          | El nombre (NFT envuelto) ya no puede ser transferido.                                                                                                              |
+| **`CANNOT_SET_RESOLVER`**      | El contrato resolver para el nombre ya no puede ser actualizado.                                                                                                  |
+| **`CANNOT_SET_TTL`**           | El TTL para el nombre ya no puede ser actualizado.                                                                                                                 |
+| **`CANNOT_CREATE_SUBDOMAIN`**  | Ya no se pueden crear nuevos subdominios.                                                                                                                          |
+| **`CANNOT_APPROVE`**           | El "administrador de renovación de subnombres" aprobado para el nombre ya no puede ser actualizado. Ve la sección [Operadores Aprobados](#approved-operators) para más información.     |
+| **Fusibles Personalizados**    | ¡Hay 9 otros fusibles controlados por el propietario que no están reservados, y pueden usarse de cualquier manera personalizada que quieras!                       |
+
+## Los Estados Emancipado y Bloqueado
+
+Esto también está cubierto en la sección [Estados Envueltos](/es/wrapper/states), pero aquí hay un resumen rápido:
+
+Todos los nombres de segundo nivel .eth (como `name.eth`) se colocan automáticamente en el estado Emancipado cuando están envueltos.
+
+**Emancipado** significa que el padre ya no tiene control sobre el nombre hijo. Ya no puede quemar ningún fusible o reemplazar el subnombre, hasta el vencimiento.
+
+Un nombre está Emancipado cuando el padre quema el fusible **`PARENT_CANNOT_CONTROL`** (PCC). El padre debe estar primero en el estado Bloqueado para poder hacer esto.
+
+**Bloqueado** significa que el nombre no puede ser desenrollado. Esto proporciona garantía a los subnombres de que el propietario padre no puede desenrollar y luego, por ejemplo, comenzar a reemplazar subnombres directamente contra el registro.
+
+Un nombre Emancipado está Bloqueado cuando el fusible **`CANNOT_UNWRAP`** (CU) está quemado.
+
+Piensa en los fusibles especiales PCC / CU recursivamente:
+
+- Para quemar fusibles controlados por el propietario o de subnombres, CU debe ser quemado.
+- Para quemar CU, PCC debe ser quemado.
+- Solo el padre puede quemar PCC en el nombre hijo, y solo si CU se quema primero en el padre.
+- Solo el abuelo puede quemar PCC en el nombre padre, y solo si CU se quema primero en el abuelo.
+- Y así sucesivamente...
+
+Sigue esa cadena hasta que llegues a un nombre de segundo nivel .eth como `name.eth`, ya que los nombres de segundo nivel .eth tendrán PCC quemado automáticamente al envolver. El nodo padre `eth` ya está en el estado Bloqueado.
+
+Un nombre padre puede quemar todos los fusibles que necesita en un nombre hijo en una transacción. Esto puede hacerse cuando se crea el subnombre, o en un subnombre existente que aún no ha sido Emancipado.
+
+## Dominios DNS y Fusibles
+
+Actualmente, solo los nombres .eth soportan fusibles, porque solo el nodo `eth` es nativo en cadena y completamente bloqueado más allá del control de cualquiera.
+
+Técnicamente hablando, el propietario de un TLD DNS tiene la capacidad de quemar fusibles en ese TLD en el Name Wrapper, y establecerlo en el estado "Bloqueado". Y luego desde ahí, todos los subnombres bajo ese TLD DNS _podrán_ usar fusibles.
+
+El propietario del TLD DNS necesitaría:
+
+- Solicitar el Controlador de ese TLD del ENS DAO
+- Envolver el nodo TLD en el Name Wrapper
+- Quemar los fusibles **`PARENT_CANNOT_CONTROL`** y **`CANNOT_UNWRAP`** en el TLD envuelto para bloquearlo
+
+Sin embargo, esto aún no tiene todas las garantías inmutables que tienen los nombres .eth. Esto es porque para los nombres DNS, la "fuente de verdad" siempre yace no en la red Ethereum, sino en la red DNS, y la zona raíz DNS gobernada por las partes interesadas de ICANN.
+
+Así que incluso si el propietario del TLD DNS "Bloquea" ese TLD en el ENS Name Wrapper, si ese TLD alguna vez cambiara de propiedad en el lado DNS, entonces (según la [Constitución del ENS DAO](https://docs.ens.domains/v/governance/ens-dao-constitution#iv.-ens-integrates-with-the-global-namespace)) el nuevo propietario podría anular el control de ese TLD en el lado ENS, desenrollarlo, y reemplazar/revocar todos los 2LDs. Esto es solo algo a tener en cuenta para los dominios DNS envueltos.
+
+Incluso si los dominios DNS envueltos no soportan fusibles, aún puedes usarlos como NFTs ERC-1155. Aún tendrán sus propios metadatos NFT y aparecerán en tu wallet, con cualquier avatar que hayas establecido, etc. Simplemente no tendrán toda la funcionalidad extra que viene con el sistema de fusibles/permisos.

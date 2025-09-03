@@ -1,0 +1,119 @@
+---
+description: ENS is multichain, but it all starts with Ethereum Mainnet. This page contains common addresses for ENS contracts.
+---
+
+import { ContractDeployments } from '../../components/ContractDeployments'
+import { EmbedLink } from '../../components/EmbedLink'
+import { Card } from '../../components/ui/Card'
+
+# Deployments
+
+:::note
+This page contains information that is only relevant to developers who would
+like to interact with the contract manually. Most libraries will handle this
+for you.
+:::
+
+ENS is multichain (read more [here](/web/multichain)) and can be used in any application.
+In addition to being able to query many address formats and record types, data can be stored [practically anywhere](/learn/ccip-read).
+However, resolution needs to start somewhere, so the entrypoint for resolution is Ethereum Mainnet, alongside the most popular testnets.
+
+<Card className="flex justify-center gap-4">
+  <span>Ethereum Mainnet</span>
+  <div>→</div>
+  <div className="flex flex-col">
+    <span>Base</span>
+    <span>Arbitrum</span>
+    <span>Offchain</span>
+    <span>...</span>
+  </div>
+</Card>
+
+## Deployments
+
+Listed below you will find a list of latest deployments of registries, resolvers, and more.
+
+### Mainnet
+
+Interact with ENS on Ethereum Mainnet via [app.ens.domains](https://app.ens.domains).
+
+<ContractDeployments chain="mainnet" />
+
+### Sepolia
+
+Interact with ENS on the Sepolia testnet via [sepolia.app.ens.domains](https://sepolia.app.ens.domains).
+
+<ContractDeployments chain="sepolia" />
+
+### Holesky
+
+Interact with ENS on the Holesky testnet via [holesky.app.ens.domains](https://holesky.app.ens.domains).
+
+<ContractDeployments chain="holesky" />
+
+## But what about multichain?
+
+While the core ENS protocol lives on Ethereum Mainnet, it can be used to resolve data for any chain!
+
+<EmbedLink
+  title="Offchain / L2 Resolvers"
+  description="Learn more about ENS on Layer 2 and offchain solutions"
+  href="/resolvers/ccip-read"
+/>
+
+---
+
+# Despliegues
+
+:::note
+Esta página contiene información que solo es relevante para desarrolladores que querrían
+interactuar con el contrato manualmente. La mayoría de librerías manejarán esto
+por ti.
+:::
+
+ENS es multichain (lee más [aquí](/es/web/multichain)) y puede ser usado en cualquier aplicación.
+Además de poder consultar muchos formatos de dirección y tipos de registro, los datos pueden almacenarse [prácticamente en cualquier lugar](/es/learn/ccip-read).
+Sin embargo, la resolución necesita comenzar en algún lugar, por lo que el punto de entrada para la resolución es Ethereum Mainnet, junto con las testnets más populares.
+
+<Card className="flex justify-center gap-4">
+  <span>Ethereum Mainnet</span>
+  <div>→</div>
+  <div className="flex flex-col">
+    <span>Base</span>
+    <span>Arbitrum</span>
+    <span>Offchain</span>
+    <span>...</span>
+  </div>
+</Card>
+
+## Despliegues
+
+Listados a continuación encontrarás una lista de los últimos despliegues de registros, resolvers, y más.
+
+### Mainnet
+
+Interactúa con ENS en Ethereum Mainnet a través de [app.ens.domains](https://app.ens.domains).
+
+<ContractDeployments chain="mainnet" />
+
+### Sepolia
+
+Interactúa con ENS en la testnet Sepolia a través de [sepolia.app.ens.domains](https://sepolia.app.ens.domains).
+
+<ContractDeployments chain="sepolia" />
+
+### Holesky
+
+Interactúa con ENS en la testnet Holesky a través de [holesky.app.ens.domains](https://holesky.app.ens.domains).
+
+<ContractDeployments chain="holesky" />
+
+## ¿Pero qué hay de multichain?
+
+Mientras que el protocolo ENS central vive en Ethereum Mainnet, ¡puede ser usado para resolver datos para cualquier cadena!
+
+<EmbedLink
+  title="Resolvers Fuera de Cadena / L2"
+  description="Aprende más sobre ENS en Layer 2 y soluciones fuera de cadena"
+  href="/es/resolvers/ccip-read"
+/>
