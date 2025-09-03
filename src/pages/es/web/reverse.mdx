@@ -28,13 +28,13 @@ El resultado de esta relación hace que sea seguro para las aplicaciones mostrar
   <EnsProfile name="nick.eth" hideAddress />
 </Card>
 
-Mientras que la resolución hacia adelante se configura en [Resolvers](/resolvers/quickstart), los registros inversos típicamente se establecen a través de contratos inteligentes llamados Reverse Registrars de los que puedes [leer más abajo](#setting-primary-names).
+Mientras que la resolución hacia adelante se configura en [Resolvers](/es/resolvers/quickstart), los registros inversos típicamente se establecen a través de contratos inteligentes llamados Reverse Registrars de los que puedes [leer más abajo](#setting-primary-names).
 
 ## Nombres Primarios L2
 
 Antes de sumergirnos en ejemplos de código, primero entendamos por qué las cosas funcionan como lo hacen.
 
-Antes de agosto de 2025, los usuarios de ENS tenían que hacer una transacción en Ethereum Mainnet (L1) para establecer un nombre primario. Más específicamente, tenían que establecer un registro inverso en el contrato [Reverse Registrar](/registry/reverse) que solo estaba disponible en L1.
+Antes de agosto de 2025, los usuarios de ENS tenían que hacer una transacción en Ethereum Mainnet (L1) para establecer un nombre primario. Más específicamente, tenían que establecer un registro inverso en el contrato [Reverse Registrar](/es/registry/reverse) que solo estaba disponible en L1.
 
 <QandA
   open
@@ -72,7 +72,7 @@ setAddr(
 
 Ahora que `nick.eth` resuelve a `0x1234...5678` vía el cointype de Base, y `name(0x1234...5678)` en el reverse registrar de Base devuelve `nick.eth`, mi nombre primario está completamente establecido.
 
-Un enfoque alternativo, que sería más eficiente en este caso, es establecer la dirección EVM por defecto para `nick.eth` en el [resolver público](/resolvers/public) más reciente, y el registro inverso por defecto a `nick.eth` en el reverse registrar por defecto. Esto permitiría que el nombre resuelva a la dirección correcta en todas las cadenas.
+Un enfoque alternativo, que sería más eficiente en este caso, es establecer la dirección EVM por defecto para `nick.eth` en el [resolver público](/es/resolvers/public) más reciente, y el registro inverso por defecto a `nick.eth` en el reverse registrar por defecto. Esto permitiría que el nombre resuelva a la dirección correcta en todas las cadenas.
 
 ## Obtener un Nombre Primario
 
@@ -174,7 +174,7 @@ func main() {
 </Card>
 
 :::info
-Si eres un desarrollador de librerías buscando implementar esta funcionalidad, recomendamos usar el [Universal Resolver](/resolvers/universal). Es un contrato de utilidad que simplifica enormemente el proceso de resolver un nombre.
+Si eres un desarrollador de librerías buscando implementar esta funcionalidad, recomendamos usar el [Universal Resolver](/es/resolvers/universal). Es un contrato de utilidad que simplifica enormemente el proceso de resolver un nombre.
 :::
 
 ## Establecer Nombres Primarios
@@ -183,9 +183,9 @@ Como los nombres primarios requieren resolución bidireccional, hay dos pasos pa
 
 Primero, el usuario necesitaría establecer la dirección de Base para `nick.eth` a `0x1234...5678`. [Lee más sobre direcciones multichain](/es/web/resolution#multi-chain-addresses-btc-ltc-etc) para entender cómo funciona esto.
 
-Luego, el usuario necesitaría establecer el registro inverso para `0x1234...5678` a `nick.eth` en el Reverse Registrar de Base. [Lee más sobre registros inversos](/registry/reverse) para entender cómo funciona esto.
+Luego, el usuario necesitaría establecer el registro inverso para `0x1234...5678` a `nick.eth` en el Reverse Registrar de Base. [Lee más sobre registros inversos](/es/registry/reverse) para entender cómo funciona esto.
 
-Para evitar hacer esto manualmente para múltiples cadenas, el usuario puede establecer su registro inverso por defecto a `nick.eth` en el reverse registrar por defecto, y su dirección EVM por defecto a `0x1234...5678` en el [resolver público](/resolvers/public) más reciente.
+Para evitar hacer esto manualmente para múltiples cadenas, el usuario puede establecer su registro inverso por defecto a `nick.eth` en el reverse registrar por defecto, y su dirección EVM por defecto a `0x1234...5678` en el [resolver público](/es/resolvers/public) más reciente.
 
 <EmbedLink
   href="/registry/reverse"
